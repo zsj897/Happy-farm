@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<root>
+  <Interfaces>
+		<Interface>	cardBase	</Interface>
+	</Interfaces>
+
+  <Volatile>
+    <position>0</position>
+    <yaw/>
+    <!--<pitch> 20 </pitch>-->
+    <pitch/>
+    <roll/>
+  </Volatile>
+
+
+  <Properties>
+    <account>
+      <Type>ENTITYCALL</Type>
+      <Flags>BASE</Flags>
+    </account>
+    <roleType>
+      <Type>UINT8</Type>
+      <Flags>ALL_CLIENTS</Flags>
+    </roleType>
+    <situation>
+      <Type>UINT8</Type>
+      <Flags>OWN_CLIENT</Flags>
+    </situation>
+    <spellPower>
+      <Type>INT8</Type>
+      <Flags>ALL_CLIENTS</Flags>
+    </spellPower>
+    <afterTime>
+      <Type>UINT64</Type>
+      <Flags>OWN_CLIENT</Flags>
+    </afterTime>
+    <nameA>
+      <Type>UNICODE</Type>
+      <Flags>ALL_CLIENTS</Flags>
+    </nameA>
+    <cardList>
+      <Type>AVATAR_CARDLIST</Type>
+      <Flags>CELL_PRIVATE</Flags>
+    </cardList>
+    <cardEntityList>
+      <Type>ENTITY_LIST</Type>
+      <Flags>CELL_PRIVATE</Flags>
+    </cardEntityList>
+    <KZsum>
+      <Type>UINT8</Type>
+      <Flags>ALL_CLIENTS</Flags>
+    </KZsum>
+    <playerIDB>
+      <Type>UINT8</Type>
+      <Flags>BASE</Flags>
+    </playerIDB>
+    <CrystalSum>
+      <Type>UINT8</Type>
+      <Flags>ALL_CLIENTS</Flags>
+    </CrystalSum>
+    <CrystalAvaliable>
+      <Type>UINT8</Type>
+      <Flags>ALL_CLIENTS</Flags>
+    </CrystalAvaliable>
+    <uesCardSumInRound>
+      <Type>UINT8</Type>
+      <Flags>ALL_CLIENTS</Flags>
+    </uesCardSumInRound>
+</Properties>
+
+<BaseMethods>
+    <BattleEnd>
+    </BattleEnd>
+</BaseMethods>
+
+  <CellMethods>
+    <testMaxCrystal>
+      <Exposed/>
+    </testMaxCrystal>
+    <testGetCard>
+      <Arg>UINT32</Arg>
+      <Exposed/>
+    </testGetCard>
+    <testAddTime>
+      <Exposed/>
+    </testAddTime>
+    <testChangeSkill>
+      <Arg>UINT8</Arg>
+      <Exposed/>
+    </testChangeSkill>
+    <reqEndRound>
+      <Exposed/>
+    </reqEndRound>
+    <reqGiveUp>
+      <Exposed/>
+    </reqGiveUp>
+    <onBeginChooseCard>
+      <Arg>ENTITY_ID_LIST</Arg>
+      <Exposed/>
+    </onBeginChooseCard>
+    <reqSendDialog>
+      <Arg>UNICODE</Arg>
+      <Arg>UNICODE</Arg>
+      <Exposed/>
+    </reqSendDialog>
+  </CellMethods>
+  
+  <ClientMethods>
+    <battleResultClientDisplay>
+      <Arg>	INT32	</Arg>
+    </battleResultClientDisplay>
+    <onSendDialog>
+      <Arg>UNICODE</Arg>
+      <Arg>UNICODE</Arg>
+    </onSendDialog>
+    <beginCardChoose>
+      <Arg>ENTITY_ID_LIST</Arg>
+      <Arg>INT8</Arg>
+    </beginCardChoose>
+    <endChooseCard>
+    </endChooseCard>
+    <battleMsg>
+      <Arg>UNICODE</Arg>
+    </battleMsg>
+  </ClientMethods>
+</root>

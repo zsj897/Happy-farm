@@ -1,0 +1,267 @@
+<root>
+   <Components>
+		<bags>			
+			<Type> 			bags		</Type>
+			<Persistent>	true		</Persistent>
+		</bags>
+    <Land>			
+			<Type> 			Land		</Type>
+			<Persistent>	true		</Persistent>
+		</Land>
+    <Friends>			
+			<Type> 			Friends		</Type>
+			<Persistent>	true		</Persistent>
+		</Friends>
+    <Pet>			
+			<Type> 			Pet		</Type>
+			<Persistent>	true		</Persistent>
+		</Pet>
+    <Task>			
+			<Type> 			Task		</Type>
+			<Persistent>	true		</Persistent>
+		</Task>
+	</Components>
+  
+	<Properties>
+    <UID>
+      <Type>			UID		</Type>
+      <Flags>			BASE			</Flags>
+      <Persistent>		true	 </Persistent>
+    </UID>
+
+    <Data>
+      <Type> ACCOUNT_DATA </Type>
+      <Flags>			BASE				</Flags>
+      <Persistent>		true				</Persistent>
+    </Data>
+
+    <Card_Data>
+      <Type> CARD_INFOS_LIST </Type>
+      <Flags>			BASE_AND_CLIENT				</Flags>
+      <Persistent>		false				</Persistent>
+    </Card_Data>
+
+    <Avatar_List>
+      <Type> AVATAR_INFOS_LIST </Type>
+      <Flags>			BASE_AND_CLIENT				</Flags>
+      <Persistent>		false				</Persistent>
+    </Avatar_List>
+
+	</Properties>
+
+	<ClientMethods>
+
+    <battleResultClientDisplay>
+      <Arg>	INT32	</Arg>
+      <Arg>	INT32	</Arg>
+    </battleResultClientDisplay>
+    
+    <gotoMain>
+    </gotoMain>
+    
+    <onReqAvatarList>
+      <Arg>	AVATAR_INFOS_LIST	</Arg>
+    </onReqAvatarList>
+
+    <onRemoveAvatar>
+      <Arg>	UNICODE	</Arg>
+    </onRemoveAvatar>
+
+    <onChangeAvatar>
+      <Arg>	UNICODE	</Arg>
+    </onChangeAvatar>
+
+    <onAddCardGroup>
+      <Arg>	UNICODE	</Arg>
+    </onAddCardGroup> 
+
+    <onInitBattleField>
+    </onInitBattleField>
+
+    <OnBattleResult>
+      <Arg> INT8 </Arg>
+    </OnBattleResult>
+
+    <onMarchMsg>
+      <Arg> UNICODE </Arg>
+    </onMarchMsg>
+
+    <OnMarcherSum>
+      <Arg> INT64 </Arg>
+    </OnMarcherSum>
+
+    <onGetPlayerSum>
+      <Arg> INT64 </Arg>
+    </onGetPlayerSum>
+
+    <OnDelCarErr>
+      <Arg> UINT8 </Arg>
+    </OnDelCarErr>
+    
+    <OnGetKz>
+      <Arg> CARD_GROUP </Arg>
+    </OnGetKz>
+
+    <OnAddCardGroup>
+      <Arg> UNICODE </Arg>
+    </OnAddCardGroup>
+
+    <onInf>
+      <Arg> UNICODE </Arg>
+    </onInf>
+
+    <onMoney>
+      <Arg> UINT64 </Arg>
+    </onMoney>
+
+    <onDiamond>
+      <Arg> UINT64 </Arg>
+    </onDiamond>
+
+    <onKglod>
+      <Arg> UINT64 </Arg>
+    </onKglod>
+
+    <onEglod>
+      <Arg> UINT64 </Arg>
+    </onEglod>
+
+    <onAccountCardData>
+      <Arg> CARD_INFOS_LIST </Arg>
+    </onAccountCardData>
+    
+    <onbuycard>
+      <Arg> UINT8 </Arg>
+    </onbuycard>
+
+    <onOpeningPackResult>
+      <Arg> OPEN_PACK_DATA</Arg>
+      <Arg> OPEN_PACK_NAME_DATA</Arg>
+    </onOpeningPackResult>
+
+    <onData>
+      <Arg> ACCOUNT_DATA </Arg>
+      <Arg> DBID </Arg>
+    </onData>
+
+    <onChangeData>
+      <Arg> ERR_MSG </Arg>
+      <Arg> UNICODE </Arg>
+    </onChangeData>
+
+    <onBindAccount>
+      <Arg> ERR_MSG </Arg>
+    </onBindAccount>
+	</ClientMethods>
+
+	<BaseMethods>
+    <reqGetClient>
+      <Exposed/>
+    </reqGetClient>
+
+    <reqChangeAvatar>
+      <Arg> INT8 </Arg>
+      <Arg> AVATAR_CARDLIST </Arg>
+      <Arg> UNICODE </Arg>
+      <Arg> INT8 </Arg>
+      <Exposed/>
+    </reqChangeAvatar>
+
+    <reqRemoveAvatar>
+      <Arg> UINT8 </Arg>
+      <Exposed/>
+    </reqRemoveAvatar>
+
+    <reqAvatarList>
+      <Exposed/>
+    </reqAvatarList>
+    
+    <onInitBattleField>
+      <Arg> INT8 </Arg>
+    </onInitBattleField>
+
+    <BattleEndResult>
+      <Arg> INT16 </Arg>
+    </BattleEndResult>
+
+    <OnClientMsg_March>
+      <Arg> UNICODE </Arg>
+    </OnClientMsg_March>
+
+    <reqStopMarch>
+      <Exposed/>
+    </reqStopMarch>
+    
+    <reqStartMarch>
+      <Arg> INT16 </Arg>
+      <Exposed/>
+    </reqStartMarch>
+
+    <reqPlayerSum>
+      <Exposed/>
+    </reqPlayerSum>
+
+    <OnPlayerSum>
+      <Arg> INT64 </Arg>
+      <Arg> INT64 </Arg>
+    </OnPlayerSum>
+
+    <OnEnterBattelField>
+      <Arg> ENTITYCALL </Arg>
+      <Arg> INT16 </Arg>
+    </OnEnterBattelField>
+
+    <reqAccountCardData>
+      <Exposed/>
+    </reqAccountCardData>
+    
+    <reqMoney>
+      <Exposed/>
+    </reqMoney>
+
+    <reqOpeningPack>
+      <Exposed/>
+    </reqOpeningPack>
+
+    <reqInf>
+      <Exposed/>
+    </reqInf>
+  
+    <reqBuyWithGold>
+      <Arg> INT64 </Arg>
+      <Exposed/>
+    </reqBuyWithGold>
+
+    <reqHasEnteredBattlefiled>
+      <Exposed/>
+    </reqHasEnteredBattlefiled>
+    
+    <reqBuyWithRMB>
+      <Arg> INT64 </Arg>
+      <Exposed/>
+    </reqBuyWithRMB>
+
+    <reqData>
+      <Arg> DBID </Arg>
+      <Exposed/>
+    </reqData>
+
+    <reqChangeData>
+      <Arg> UNICODE </Arg>
+      <Arg> UINT8 </Arg>
+      <Arg> UINT32 </Arg>
+      <Exposed/>
+    </reqChangeData>
+
+    <reqBindAccount>
+      <Arg> UNICODE </Arg>
+      <Arg> UNICODE </Arg>
+      <Exposed/>
+    </reqBindAccount>
+    
+  </BaseMethods>
+
+	<CellMethods>
+	</CellMethods>
+
+</root>

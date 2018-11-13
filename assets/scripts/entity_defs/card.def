@@ -1,0 +1,26 @@
+<root>
+	<Volatile>
+		<position> 0 </position>
+		<yaw/>
+		<!--<pitch> 20 </pitch>-->
+		<pitch/>
+		<roll/>
+	</Volatile>
+
+	<Interfaces>
+    <Interface>	cardBase </Interface>
+	</Interfaces>
+
+	<Properties>     
+	</Properties>
+
+	<BaseMethods>
+	</BaseMethods>
+
+	<CellMethods>
+	</CellMethods>
+
+	<ClientMethods>
+	</ClientMethods>
+</root>
+

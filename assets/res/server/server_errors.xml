@@ -1,0 +1,26 @@
+<root>
+	<SERVER_ERR_PROXY_DESTROYED>
+		<id>11</id>
+		<descr>	与服务器连接已断开，请重新登录 </descr>
+	</SERVER_ERR_PROXY_DESTROYED>
+
+	<SERVER_ERR_USER1>
+		<id>25</id>
+		<descr>	登录超时</descr>
+	</SERVER_ERR_USER1>
+	
+	<SERVER_ERR_USER2>
+		<id>26</id>
+		<descr>	此账号尚未注册 </descr>
+	</SERVER_ERR_USER2>
+
+    <SERVER_ERR_USER3>
+		<id>27</id>
+		<descr>	手机号码格式错误 </descr>
+	</SERVER_ERR_USER3>
+
+    <SERVER_ERR_USER4>
+		<id>28</id>
+		<descr>	登录失败</descr>
+	</SERVER_ERR_USER4>
+</root>

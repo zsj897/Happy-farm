@@ -1,0 +1,1 @@
+{"1": {"ID": 1, "radius": 100, "frequence": 5, "GenMinMax": [4, 8], "GenIDList": [3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010, 3011, 3012], "SpeMinMax": [1, 1], "SpeProb": 2000, "SpeIDList": [4001, 4002, 4003, 4004], "SpeProbList": [6000, 4000, 0, 0], "probability": 3000, "PetMaxNum": 25}}

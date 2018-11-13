@@ -1,0 +1,30 @@
+# ----[ Visual Studio ]------- #
+/kbe/src/_objs
+/kbe/src/ipch
+__pycache__/
+logs/
+/scripts/.idea/
+/scripts/cell/.idea/
+*.suo
+*.user
+*.ncb
+*.plg
+*.opt
+*.aps
+*.aps
+*.sdf
+*.opensdf
+*.exp
+*.idb
+*.ilk
+*.exe
+*.pdb
+*.chw
+
+# -------------[ OS generated ]------------------------ #
+.DS_Store
+.DS_Store?
+ehthumbs.db
+Thumbs.db
+
+*.pyc

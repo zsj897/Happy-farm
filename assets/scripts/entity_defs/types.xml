@@ -1,0 +1,466 @@
+<root>
+  <ACCOUNT_ID>	UINT64		</ACCOUNT_ID>
+  <BOOL>				UINT8		</BOOL>
+	<ITEM_ID>			INT32		</ITEM_ID>
+  <ITEMTYPE>    INT32   </ITEMTYPE>
+	<DBID>				UINT64		</DBID>
+	<UID>				  UNICODE		</UID>
+	<ENTITY_ID>			INT32		</ENTITY_ID>
+	<ENTITY_NO>			UINT32		</ENTITY_NO>
+	<ENTITY_UTYPE>	UINT32		</ENTITY_UTYPE>
+  <ERR_MSG>				 UNICODE		</ERR_MSG>
+  <CARD_GROUP>
+     ARRAY <of>ARRAY <of>UINT64 </of></of>
+  </CARD_GROUP>
+  <CARD_GROUP_IN>
+    ARRAY <of>UINT64 </of>
+  </CARD_GROUP_IN>
+  <ENTITY_ID_LIST>
+    ARRAY <of>INT32 </of>
+  </ENTITY_ID_LIST>
+  <!--卡组卡牌列表-->
+  <AVATAR_CARDLIST>
+    ARRAY <of>UINT64 </of>
+  </AVATAR_CARDLIST>
+  <ENTITY_LIST>
+    ARRAY <of>ENTITYCALL </of>
+  </ENTITY_LIST>
+
+  <ACCOUNT_DATA> FIXED_DICT
+    <Properties>
+      <money> <!--游戏币-->
+        <Type>	UINT64	</Type>
+      </money>
+      <diamond>  <!--钻石-->
+        <Type>	UINT64	</Type>
+      </diamond>
+      <kglod>  <!--开元通宝-->
+        <Type>	UINT64	</Type>
+      </kglod>
+      <eglod>  <!--e币-->
+        <Type>	UINT64	</Type>
+      </eglod>
+      <name>
+        <Type>	UNICODE	</Type>
+      </name>
+      <gender>   <!--性别，0：未创建 1：男  2：女-->
+        <Type>	UINT8	</Type>
+      </gender>
+      <Icon>   <!--头像-->
+        <Type>	UINT32	</Type> 
+      </Icon>
+      <FirstLogin>   <!--第一次登陆-->
+        <Type>	BOOL	</Type> 
+      </FirstLogin>
+      <FirstRecharge>   <!--第一次充值-->
+        <Type>	BOOL	</Type> 
+      </FirstRecharge>
+      <rank>
+        <Type>	UINT64	</Type>
+      </rank>
+    </Properties>
+  </ACCOUNT_DATA>
+  
+   <STEAL_LIST>
+    ARRAY <of>DBID </of>
+  </STEAL_LIST>
+
+  <LAND_INFO>
+    FIXED_DICT
+    <Properties>
+      <ID> <!--土地标识 目前是 1 - 36 -->
+        <Type>	UINT32	</Type>
+      </ID>
+      <LandType> <!--土地类型 黄土地 -->
+        <Type>	UINT32	</Type>
+      </LandType>
+      <ItemType> <!--种子类型 -->
+        <Type>	UINT32	</Type>
+      </ItemType>
+      <UseNum> <!-- 剩余次数 -->
+        <Type>	UINT32	</Type>
+      </UseNum>
+      <stage> <!-- 当前阶段 -->
+        <Type>	UINT32	</Type>
+      </stage>
+      <EndTime> <!--种子到下一阶段的时间-->
+        <Type>	UINT32	</Type>
+      </EndTime>
+      <surpHarvest> <!-- 成熟阶段的剩余收益 -->
+        <Type>	UINT32	</Type>
+      </surpHarvest>
+      <Harvest> <!-- 成熟阶段的收益 -->
+        <Type>	UINT32	</Type>
+      </Harvest>
+      <StealList> <!-- 偷树者列表 -->
+        <Type>	STEAL_LIST	</Type>
+      </StealList>
+    </Properties>
+  </LAND_INFO>
+
+  <LAND_LIST>
+    ARRAY <of>LAND_INFO </of>
+  </LAND_LIST>
+
+  <GJ_INFO>
+    FIXED_DICT
+    <Properties>
+      <GJType> <!--管家类型 -->
+        <Type>	UINT32	</Type>
+      </GJType>
+      <GJEndtime> <!--管家结束时间-->
+        <Type>	UINT64	</Type>
+      </GJEndtime>
+      <GJGetEndtime> <!--管家收获结束时间-->
+        <Type>	UINT64	</Type>
+      </GJGetEndtime>
+    </Properties>
+  </GJ_INFO>
+
+  <FRIEND_INFO>
+    FIXED_DICT
+    <Properties>
+      <uid> 
+        <Type>	UNICODE	</Type>
+      </uid>
+      <online> 
+        <Type>	UINT8	</Type>
+      </online>
+      <DBID> 
+        <Type>	DBID	</Type>
+      </DBID>
+      <Name> 
+        <Type>	UNICODE	</Type>
+      </Name>
+      <Icon> 
+        <Type>	UINT32	</Type>
+      </Icon>
+      <gender> 
+        <Type>	UINT8	</Type>
+      </gender>
+      <CanSteal> 
+        <Type>	BOOL	</Type>
+      </CanSteal>
+    </Properties>
+  </FRIEND_INFO>
+
+  <APPLY_INFO>
+    FIXED_DICT
+    <Properties>
+      <DBID> 
+        <Type>	DBID	</Type>
+      </DBID>
+      <IsYao> 
+        <Type>	BOOL	</Type>
+      </IsYao>
+    </Properties>
+  </APPLY_INFO>
+
+  <ACCEPT_INFO>
+    FIXED_DICT
+    <Properties>
+      <DBID> 
+        <Type>	DBID	</Type>
+      </DBID>
+      <YaoEndTime> 
+        <Type>	UINT64	</Type>
+      </YaoEndTime>
+    </Properties>
+  </ACCEPT_INFO>
+  
+  <STEAL_INFO>
+    FIXED_DICT
+    <Properties>
+      <LandID> 
+        <Type>	UINT32	</Type>
+      </LandID>
+      <StealValue> 
+        <Type>	UINT32	</Type>
+      </StealValue>
+    </Properties>
+  </STEAL_INFO>
+
+  <CAN_STEAL_INFO>
+    FIXED_DICT
+    <Properties>
+      <DBID> 
+        <Type>	DBID	</Type>
+      </DBID>
+      <CanSteal> 
+        <Type>	BOOL	</Type>
+      </CanSteal>
+    </Properties>
+  </CAN_STEAL_INFO>
+
+  <ITEM_INFO>
+    FIXED_DICT
+    <Properties>
+      <ItemType> <!--对应策划表的ID-->
+        <Type>	ITEMTYPE	</Type>
+      </ItemType>
+      <ItemNum> <!--物品数量-->
+        <Type>	UINT32	</Type>
+      </ItemNum>
+    </Properties>
+  </ITEM_INFO>
+
+  <SYS_MESSAGE>
+    FIXED_DICT
+    <Properties>
+      <MesaageUUID> 
+        <Type>	UINT64	</Type>
+      </MesaageUUID>
+      <time> 
+        <Type>	UINT64	</Type>
+      </time>
+      <MesaageID> 
+        <Type>	UINT32	</Type>
+      </MesaageID>
+      <ArgList>   <!--state 0:未处理 1:接受未处理 2:拒绝 3:已接受已处理-->
+        <Type>	ARRAY <of>UNICODE </of>	</Type>
+      </ArgList>
+    </Properties>
+  </SYS_MESSAGE>
+
+  <PET_MAP_CONFIG_INFO>
+    FIXED_DICT
+    <Properties>
+      <cityName> 
+        <Type>	UNICODE	</Type>
+      </cityName>
+      <position> 
+        <Type>	UNICODE	</Type>
+      </position>
+      <location> 
+        <Type>	UNICODE	</Type>
+      </location>
+      <radius> 
+        <Type>	UNICODE	</Type>
+      </radius>
+      <Scycle> 
+        <Type>	UNICODE	</Type>
+      </Scycle>
+      <Ecycle> 
+        <Type>	UNICODE	</Type>
+      </Ecycle>
+      <Stime> 
+        <Type>	UNICODE	</Type>
+      </Stime>
+      <Etime> 
+        <Type>	UNICODE	</Type>
+      </Etime>
+      <frequence> 
+        <Type>	UNICODE	</Type>
+      </frequence>
+      <gen_min> 
+        <Type>	UNICODE	</Type>
+      </gen_min>
+      <gen_max> 
+        <Type>	UNICODE	</Type>
+      </gen_max>
+      <gen_id> 
+        <Type>	UNICODE	</Type>
+      </gen_id>
+      <spe_min> 
+        <Type>	UNICODE	</Type>
+      </spe_min>
+      <spe_max> 
+        <Type>	UNICODE	</Type>
+      </spe_max>
+      <spe_id> 
+        <Type>	UNICODE	</Type>
+      </spe_id>
+      <spe_prob> 
+        <Type>	UNICODE	</Type>
+      </spe_prob>
+      <spe_prob_list> 
+        <Type>	UNICODE	</Type>
+      </spe_prob_list>
+      <enable> 
+        <Type>	UNICODE	</Type>
+      </enable>
+    </Properties>
+  </PET_MAP_CONFIG_INFO>
+
+  <PET_MAP_XYZ>
+    FIXED_DICT
+    <Properties>
+      <PetType> 
+        <Type>	UINT32	</Type>
+      </PetType>
+      <PetNum> 
+        <Type>	UINT32	</Type>
+      </PetNum>
+    </Properties>
+  </PET_MAP_XYZ>
+
+  <PET_MAP_INFO>
+    FIXED_DICT
+    <Properties>
+      <cityName> 
+        <Type>	UNICODE	</Type>
+      </cityName>
+      <position> 
+        <Type>	UNICODE	</Type>
+      </position>
+      <radius> 
+        <Type>	UINT32	</Type>
+      </radius>
+      <refreshEndTime> 
+        <Type>	UINT64	</Type>
+      </refreshEndTime>
+      <PetXYZList> 
+        <Type>	ARRAY <of> PET_MAP_XYZ </of>	</Type>
+      </PetXYZList>
+    </Properties>
+  </PET_MAP_INFO>
+
+  <PET_SELF_INFO>
+    FIXED_DICT
+    <Properties>
+      <radius> 
+        <Type>	UINT32	</Type>
+      </radius>
+      <refreshEndTime> 
+        <Type>	UINT64	</Type>
+      </refreshEndTime>
+      <PetXYZList> 
+        <Type>	ARRAY <of> PET_MAP_XYZ </of>	</Type>
+      </PetXYZList>
+    </Properties>
+  </PET_SELF_INFO>
+
+  <PET_INFO>
+    FIXED_DICT
+    <Properties>
+      <UUID> 
+        <Type>	UINT64	</Type>
+      </UUID>
+      <PetType> 
+        <Type>	UINT32	</Type>
+      </PetType>
+      <Endtime> 
+        <Type>	UINT64	</Type>
+      </Endtime>
+    </Properties>
+  </PET_INFO>
+
+  <TASK_INFO>
+    FIXED_DICT
+    <Properties>
+      <TaskType>  <!--任务类型-->
+        <Type>	UINT32	</Type>
+      </TaskType>
+      <FinishNum>  <!--完成次数-->
+        <Type>	UINT32	</Type>
+      </FinishNum>
+      <CanAward>  <!--可以领奖-->
+        <Type>	UINT32	</Type>
+      </CanAward>
+      <Endtime>  <!--重置时间-->
+        <Type>	UINT64	</Type>
+      </Endtime>
+    </Properties>
+  </TASK_INFO>
+
+  <CARD_INFOS_LIST>
+    FIXED_DICT
+    <Properties>
+      <values>
+        <Type>
+          ARRAY <of> UINT64 </of>
+        </Type>
+      </values>
+    </Properties>
+  </CARD_INFOS_LIST>
+
+  <OPEN_PACK_DATA>
+    FIXED_DICT
+    <Properties>   
+      <card1>
+        <Type>	UINT64	</Type>
+      </card1>
+      <card2>
+        <Type>	UINT64	</Type>
+      </card2>
+      <card3>
+        <Type>	UINT64	</Type>
+      </card3>
+      <card4>
+        <Type>	UINT64	</Type>
+      </card4>
+      <card5>
+        <Type>	UINT64	</Type>
+      </card5>  
+    </Properties>
+  </OPEN_PACK_DATA>
+
+  <OPEN_PACK_NAME_DATA>
+    FIXED_DICT
+    <Properties>
+      <card1>
+        <Type>	UNICODE	</Type>
+      </card1>
+      <card2>
+        <Type>	UNICODE	</Type>
+      </card2>
+      <card3>
+        <Type>	UNICODE	</Type>
+      </card3>
+      <card4>
+        <Type>	UNICODE	</Type>
+      </card4>
+      <card5>
+        <Type>	UNICODE	</Type>
+      </card5>
+
+    </Properties>
+  </OPEN_PACK_NAME_DATA>
+
+  <!--卡组属性-->
+  <AVATAR_INFOS>
+    FIXED_DICT
+    <Properties>
+      <name>
+        <Type>	UNICODE	</Type>
+      </name>
+      <roleType>
+        <Type>	UINT8	</Type>
+      </roleType>
+      <cardList>
+        <Type>	AVATAR_CARDLIST	</Type>
+      </cardList>
+    </Properties>
+  </AVATAR_INFOS>
+
+  <STR_LIST>
+    ARRAY <of> UNICODE </of>
+  </STR_LIST>
+
+  <AVATAR_INFOS_LIST>
+          ARRAY <of> AVATAR_INFOS </of>
+  </AVATAR_INFOS_LIST>
+
+  <LLSTRING>
+    ARRAY <of>
+      ARRAY <of>STRING </of>
+    </of>
+  </LLSTRING>
+
+  <OnlinePlayerData>
+            ARRAY <of>ENTITYCALL </of>
+  </OnlinePlayerData>
+  
+  <CARD_DATA>
+    FIXED_DICT
+    <Properties>
+      <value>
+        <Type>
+          ARRAY <of> UINT64 </of>
+        </Type>
+      </value>
+    </Properties>
+  </CARD_DATA>
+
+
+</root>

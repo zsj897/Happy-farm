@@ -1,0 +1,3 @@
+# -*- coding: utf-8 -*-
+
+datas={1: {'name': '普通攻击', 'icon': 0, 'id': 1, 'target': '', 'descr': '', 'script': ''}, 2000101: {'name': '普通攻击', 'icon': 0, 'id': 2000101, 'target': '', 'descr': '', 'script': ''}, 3000101: {'name': '普通攻击', 'icon': 0, 'id': 3000101, 'target': '', 'descr': '', 'script': ''}, 4000101: {'name': '普通攻击', 'icon': 0, 'id': 4000101, 'target': '', 'descr': '', 'script': ''}, 5000101: {'name': '普通攻击', 'icon': 0, 'id': 5000101, 'target': '', 'descr': '', 'script': ''}, 6000101: {'name': '普通攻击', 'icon': 0, 'id': 6000101, 'target': '', 'descr': '', 'script': ''}, 7000101: {'name': '普通攻击', 'icon': 0, 'id': 7000101, 'target': '', 'descr': '', 'script': ''}, 1000101: {'name': '普通攻击', 'icon': 0, 'id': 1000101, 'target': '', 'descr': '', 'script': ''}}
