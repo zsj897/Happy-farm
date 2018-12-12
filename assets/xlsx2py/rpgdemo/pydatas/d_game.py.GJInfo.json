@@ -1,1 +1,1 @@
-{"5001": {"ID": 5001, "delTime": 20, "timeInterval": [1, 5], "probability": 1500}, "5002": {"ID": 5002, "delTime": 30, "timeInterval": [1, 5], "probability": 2000}}
+{"5001": {"ID": 5001, "delTime": 30, "timeInterval": [1, 5], "probability": 2000}, "5002": {"ID": 5002, "delTime": 40, "timeInterval": [1, 5], "probability": 3000}}

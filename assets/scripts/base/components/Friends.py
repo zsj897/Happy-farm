@@ -30,7 +30,7 @@ class Friends(KBEngine.EntityComponent):
         self.SetFriendStatus(True, self.owner.databaseID)
         #检查倒计时    
         self.addTimer(0.5,1,TIMER_CD_LAND_5)
-        self.TimerIDFriend = self.addTimer(0.5,60*10,TIMER_CD_FRIEND_DATA_7)
+        self.TimerIDFriend = self.addTimer(0.5,8,TIMER_CD_FRIEND_DATA_7)
         self.FriendState = 0
         self.InitClientData()
 
@@ -48,7 +48,7 @@ class Friends(KBEngine.EntityComponent):
         """
         DEBUG_MSG("Friends[%s].onClientDeath:" % str(self.owner) )
         self.SetFriendStatus(False, self.owner.databaseID)
-        self.delTimer(self.TimerIDFriend)
+        
         	
     #设置好友在线状态
     #KBEngine.baseAppData["avatar_玩家的dbid"] = 玩家的entitycall
@@ -243,22 +243,28 @@ class Friends(KBEngine.EntityComponent):
             Name = bytes.decode(result[0][2])
             Icon = bytes.decode(result[0][3])
             gender = bytes.decode(result[0][4])
-            friend_info = {'uid':uid, 'DBID':int(DBID) ,'online':0,'Name':Name, 'Icon':int(Icon),'gender':int(gender),'CanSteal':0}
+            friend_info = {'uid':uid, 'DBID':int(DBID) ,'online':0,'Name':Name, 'Icon':int(Icon),'gender':int(gender),'CanSteal':0,'Accept':0}
             if int(DBID) != self.owner.databaseID:
                 self.FriendList.append(friend_info)
         if CurCount >= MaxCount:
-            self.reqFriendList()
-            self.reqYaoShuStatus()  
-            self.CheckFriendCanSteal()
-            self.FriendState = 2
-            DEBUG_MSG("FriendList 从数据库加载完毕! %d,%d " % (CurCount, MaxCount))
+            if len(self.FriendList) == 0:
+                self.OpenFriendList('没有好友')
+                self.FriendState = 3
+            else:
+                self.reqFriendList()
+                self.reqYaoShuStatus()
+                self.FriendState = 2  
+                self.CheckFriendCanSteal()
+                self.OpenFriendList('成功')
+                DEBUG_MSG("FriendList 从数据库加载完毕! %d,%d " % (CurCount, MaxCount))
 
                
     def	InitFriendList(self, Result):
         if Result is None:
             self.FriendState = 4
-            self.OpenFriendList('众联获取好友失败')
             return
+        #删除定时器
+        self.delTimer(self.TimerIDFriend)
         if Result['status'] == 1:
             self.FriendState = 1
             self.FriendList = []
@@ -275,22 +281,24 @@ class Friends(KBEngine.EntityComponent):
 
     def GetClientFriendList(self, FriendList):
         for FriendInfo in FriendList:
+            #在线
             FriendEntity = self.GetFriendEntity(FriendInfo['DBID'])
             if FriendEntity is not None:
                 FriendInfo['online'] = 1
             else:
                 FriendInfo['online'] = 0
+            #是否接受摇树邀请
+            if self.IsExistPlayer(FriendInfo['DBID']):
+                FriendInfo['Accept'] = 1
+            else:
+                FriendInfo['Accept'] = 0
 
     def reqOpenFriendList(self):
-        #if self.FriendState == 0:
-            #if not self.owner.IsYK():
-            #    g_Poller.GetFriendList(self.owner.AccountName(), self.InitFriendList)
         if self.FriendState == 2:
             self.CheckFriendCanSteal()
+            self.OpenFriendList('成功')
         elif self.FriendState == 3:
             self.OpenFriendList('没有好友')
-        elif self.FriendState == 4:
-            self.OpenFriendList('获取好友失败')
         DEBUG_MSG("reqOpenFriendList state:%d" % (self.FriendState))
 
     def	reqFriendList(self):
@@ -343,7 +351,7 @@ class Friends(KBEngine.EntityComponent):
         ApplyInfo = {'DBID':DBID, 'IsYao':IsYao }
         self.ApplyList.append(ApplyInfo)
         self.client.onYaoShuStatus(self.ApplyList,self.AcceptList,self.YaoEndTime)
-        DEBUG_MSG("AddAcceptList:%s" % str(self.ApplyList) )
+        DEBUG_MSG("AddApplyList:%s" % str(self.ApplyList) )
         
     def ChangeApplyList(self, DBID, IsYao):
         for ApplyInfo in self.ApplyList:
@@ -639,7 +647,6 @@ class Friends(KBEngine.EntityComponent):
             self.ChangeFriendInfo(databaseID,'CanSteal', int(IsCan) )
             if CurCount >= MaxCount: 
                 self.reqFriendList()
-                self.OpenFriendList('成功')
                 DEBUG_MSG("CallBackCheckFriendCanSteal %d,%d" %(CurCount, MaxCount) )
             if not wasActive:
                 baseRef.destroy()
@@ -680,12 +687,12 @@ class Friends(KBEngine.EntityComponent):
                         if res == 0:
                             self.SYSMessage(databaseID, 3001, int(time.time()) , owerName, stealValue,'E币')
                             self.SYSMessage(0, 3008, int(time.time()) , Name, stealValue,'E币')
-                            self.client.onSteal('恭喜偷树成功，摘走了%.2f个E币' % (stealValue/100), StealLandInfo)
+                            self.client.onSteal('恭喜偷树成功，偷走了%.2f个E币' % (stealValue/100), StealLandInfo)
                         else:
                             self.SYSMessage(databaseID, 3003, int(time.time()) , owerName, stealValue,'E币')
                             self.SYSMessage(0, 3009, int(time.time()) , Name, stealValue,'E币')
                             self.SYSMessage(databaseID, 5002, int(time.time()) , owerName)
-                            self.client.onSteal('被管家抓住，只摘走了%.2f个E币' % (stealValue/100), StealLandInfo)
+                            self.client.onSteal('被管家抓住，只偷走了%.2f个E币' % (stealValue/100), StealLandInfo)
             if not wasActive:
                 baseRef.destroy()
 

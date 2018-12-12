@@ -141,6 +141,9 @@
       <CanSteal> 
         <Type>	BOOL	</Type>
       </CanSteal>
+      <Accept> 
+        <Type>	BOOL	</Type>
+      </Accept>
     </Properties>
   </FRIEND_INFO>
 

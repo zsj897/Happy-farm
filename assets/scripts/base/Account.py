@@ -51,7 +51,7 @@ class Account(KBEngine.Proxy):
 
 	def FirstLogin(self):
 		# 初始化金钱
-		self.Data["money"] = 10000
+		self.Data["money"] = 100000
 		# 随机生成人物头像，展示不支持自定义
 		self.Data["Icon"] = random.randint(1,5)
 		self.Data["gender"] = 0
@@ -119,6 +119,8 @@ class Account(KBEngine.Proxy):
 		客户端对应实体已经销毁
 		"""
 		DEBUG_MSG("Account[%i].onClientDeath:" % self.id)
+		# 1:第一次登陆 2：不是第一次登陆
+		self.Data["FirstLogin"] = 2
 		#8秒后销毁实体,以适应断线重连
 		self.TimerDestroyID = self.addTimer(8,0,3)
 		#self.destroy()
@@ -148,8 +150,8 @@ class Account(KBEngine.Proxy):
 			g_Poller.GetEglod(self.AccountName(),self.onUpdateEglod)
 			g_Poller.GetKglod(self.AccountName(),self.onUpdateKglod)
 	
-	def onUpdateEglod(self,Result):
-		if Result['code'] == 1:
+	def onUpdateEglod(self, Result):
+		if	Result['code'] == 1:
 			if Result['info']['uid'] == self.AccountName():
 				eglod = float(Result['info']['total'])
 				self.Data['eglod'] = int(round(eglod * 100))
@@ -159,8 +161,8 @@ class Account(KBEngine.Proxy):
 		else:
 			INFO_MSG("onUpdateEglod error:%s" % ( Result['info']))
 
-	def onUpdateKglod(self,Result):
-		if Result['code'] == 1:
+	def onUpdateKglod(self, Result):
+		if	Result['code'] == 1:
 			if Result['info']['uid'] == self.AccountName():
 				kglod = float(Result['info']['total'])
 				self.Data['kglod'] = int(round(kglod * 100))
@@ -177,29 +179,31 @@ class Account(KBEngine.Proxy):
 				return True, item  
 		return False,'' 
 
-	def reqChangeData(self, name, gender, Icon):
-		INFO_MSG("reqChangeData:%s,%i,%i" % (name,gender,Icon) )
+	def reqChangeName(self, name):
+		INFO_MSG("reqChangeName:%s" % (name) )
 		#名字是否有屏蔽字	
 		IsMaskWord, word = self.is_contain(name)
 		if IsMaskWord:
-			self.client.onChangeData('屏蔽字', word)
+			self.client.onChangeName('屏蔽字', word )
 			return
 		else:
-			sql = "select * from tbl_Account where sm_Data_name ='%s' and id <> %d ;" % (name,self.databaseID)
-			KBEngine.executeRawDatabaseCommand(sql, Functor.Functor(self.sqlChangeName, name, gender, Icon))
+			sql = '''select * from tbl_Account where sm_Data_name ="%s" and id <> %d ;''' % (name,self.databaseID)
+			KBEngine.executeRawDatabaseCommand(sql, Functor.Functor(self.sqlChangeName, name))
 
-
-	def sqlChangeName(self, name, gender, Icon, result, rows, insertid, error):
-		if len(result) <= 0:
+	def sqlChangeName(self, name, result, rows, insertid, error):
+		if result is not None and len(result) <= 0:
 			self.Data['name']=name
-			self.client.onChangeData('成功', name)
-			#性别		
-			self.Data['gender']=gender
-			#头像
-			self.Data['Icon']=Icon
-			self.client.onData(self.Data, self.databaseID)
+			self.client.onChangeName('成功', name)
 		else:
-			self.client.onChangeData('昵称已被使用', name)
+			self.client.onChangeName('昵称已被使用', name )
+
+	def reqChangeData(self, gender, Icon, IsFristChange):
+		INFO_MSG("reqChangeData:%i,%i" % (gender, Icon) )
+		#性别		
+		self.Data['gender']=gender
+		#头像
+		self.Data['Icon']=Icon
+		self.client.onChangeData('成功', self.Data, IsFristChange)
 		
 	#修改玩家基础数据，如金币，金蛋，开元通宝
 	def ChangeBaseData(self, priceType, value, Des):
@@ -267,7 +271,7 @@ class Account(KBEngine.Proxy):
 		elif Result['status'] == 1:
 			uid = Result['content']['uid']
 			sql = "UPDATE kbe_accountinfos SET accountName='%s' where accountName='%s';" % (uid,self.AccountName() )
-			KBEngine.executeRawDatabaseCommand(sql, Functor.Functor(self.sqlBindAccount ))
+			KBEngine.executeRawDatabaseCommand(sql, Functor.Functor(self.sqlBindAccount, uid))
 			DEBUG_MSG("OnBindAccount sql:%s" % sql)
 		elif Result['status'] == 2:
 			self.client.onBindAccount('密码错误')
@@ -276,9 +280,10 @@ class Account(KBEngine.Proxy):
 		elif Result['status'] == 4:
 			self.client.onBindAccount('手机号码格式错误')
 
-	def sqlBindAccount(self ,result, rows, insertid, error):
+	def sqlBindAccount(self,uid, result, rows, insertid, error):
 		if error is None:
 			self.client.onBindAccount('成功')
+			self.__ACCOUNT_NAME__ = uid
 		else:
 			self.client.onBindAccount('绑定失败，账号已有游戏数据')
 			

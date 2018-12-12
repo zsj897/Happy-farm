@@ -143,7 +143,7 @@ class Land(KBEngine.EntityComponent):
 			Pet = baseRef.getComponent("Pet")
 			self.client.onAllLandInfo('成功',databaseID, Land.LandData)
 			self.client.onGJInfo(databaseID,Land.GJData,False)
-			self.Component("Pet").reqAllPetInfo(databaseID)
+			self.Component("Pet").client.onAllPetInfo(databaseID,Pet.PetData)
 			self.owner.client.onData(baseRef.Data,databaseID)
 			DEBUG_MSG("CallBackLandInfo Land:%s" % str(Land.LandData))
 			if not wasActive:

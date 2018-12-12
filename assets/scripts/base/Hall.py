@@ -202,6 +202,7 @@ class Hall(KBEngine.Entity):
 		self.UpdateMapConfig(result)
 		#根据地图配置删除宠物信息
 		self.DelPetMapInfo()
+		#DEBUG_MSG("PetMapConfigList:%s" % str(self.PetMapConfigList) )
 
 	def UpdateMapConfig(self,result):
 		self.PetMapConfigList = []
@@ -254,7 +255,8 @@ class Hall(KBEngine.Entity):
 
 	def DelPetMap(self, PetMapConfig):
 		res = self.CheckTime(PetMapConfig)
-		if res == -3 or res == -4:
+		if res != 0:
+			#DEBUG_MSG("CheckTime is timeout res:%i, %s" % (res,str(PetMapConfig)) )
 			self.DelPetMap2(PetMapConfig['position'])
 		return res
 
@@ -262,6 +264,7 @@ class Hall(KBEngine.Entity):
 		for index, PetMapInfo in enumerate(self.PetMapInfoList):
 			if PetMapInfo['position'] == position:
 				del self.PetMapInfoList[index]
+				DEBUG_MSG("del PetMapInfo: %s" % position)
 				return True
 		return False
 
@@ -270,12 +273,14 @@ class Hall(KBEngine.Entity):
 		date = datetime.datetime.fromtimestamp(NowTime)
 		if date.hour < int(PetMapConfig['Stime']):
 			return -1
-		if date.hour > int(PetMapConfig['Etime']):
+		if date.hour >= int(PetMapConfig['Etime']):
 			return -2
 		Scycle = int(PetMapConfig['Scycle'])
+		Ecycle = int(PetMapConfig['Ecycle'])
+		if Scycle == Ecycle:
+			Ecycle = Scycle + 24*3600
 		if Scycle != 0 and int(NowTime) < Scycle:
 			return -3
-		Ecycle = int(PetMapConfig['Ecycle'])
 		if Ecycle != 0 and int(NowTime) > Ecycle:
 			return -4
 		return 0
@@ -283,18 +288,15 @@ class Hall(KBEngine.Entity):
 	def BuildPetMap(self, PetMapConfig, PetMapInfo):
 		if int(PetMapConfig['enable']) == 0:
 			self.DelPetMap2(PetMapInfo['position'])
-			#INFO_MSG("disenable del PetMapInfoList :%s " % PetMapConfig['location'])
 			return -1
 		#删除过期的数据
-		res = self.DelPetMap(PetMapConfig)
-		if res != 0:
-			INFO_MSG("DelPetMap, location:%s, res:%d" % (PetMapConfig['location'], res) )
+		if self.DelPetMap(PetMapConfig) != 0:
 			return -2
+		PetMapInfo['radius'] = int(PetMapConfig['radius'])
 		#是否可以刷新数据
 		nowTime = int(time.time())
 		refreshEndTime = int(PetMapInfo['refreshEndTime'])
 		if  refreshEndTime != 0 and nowTime < refreshEndTime:
-			#DEBUG_MSG("check refreshEndTime, nowTime:%d, refreshEndTime:%s" % (nowTime, refreshEndTime) )
 			return -3
 		#清空
 		PetMapInfo['PetXYZList'] = []

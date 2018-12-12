@@ -160,6 +160,11 @@ class Pet(KBEngine.EntityComponent):
                 return True
         return False
                 
+    def FindPetByType(self, PetType):
+        for PetInfo in self.PetData:
+            if PetInfo['PetType'] == PetType:
+                return PetInfo
+        return None  
 
     def CheckAllCDTime(self):
         nowtime = int(time.time() )
@@ -332,10 +337,13 @@ class Pet(KBEngine.EntityComponent):
             self.client.onPetCompound('配置表找不到特殊宠物',0)
             return
         for PetType in SpePetList:
+            if self.FindPetByType(PetType) == None:
+                self.client.onPetCompound('没有该宝宝', PetType)
+                return
+        for PetType in SpePetList:
             if not self.DelPetByType(PetType,'宝宝合成'):
-                self.client.onPetCompound('没有该宝宝',PetType)
                 return
         #获得1玫开元通宝
-        self.owner.ChangeBaseData(3, 100,'宠物合成获得开元通宝')
-        self.client.onPetCompound('成功',0)
+        self.owner.ChangeBaseData(3, 100, '宠物合成获得开元通宝')
+        self.client.onPetCompound('成功', 0)
         

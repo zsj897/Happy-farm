@@ -146,9 +146,15 @@
 
     <onChangeData>
       <Arg> ERR_MSG </Arg>
-      <Arg> UNICODE </Arg>
+      <Arg> ACCOUNT_DATA </Arg>
+      <Arg> UINT8 </Arg>
     </onChangeData>
 
+    <onChangeName>
+      <Arg> ERR_MSG </Arg>
+      <Arg> UNICODE </Arg>
+    </onChangeName>
+    
     <onBindAccount>
       <Arg> ERR_MSG </Arg>
     </onBindAccount>
@@ -246,10 +252,15 @@
       <Exposed/>
     </reqData>
 
-    <reqChangeData>
+    <reqChangeName>
       <Arg> UNICODE </Arg>
+      <Exposed/>
+    </reqChangeName>
+
+    <reqChangeData>
       <Arg> UINT8 </Arg>
       <Arg> UINT32 </Arg>
+      <Arg> UINT8 </Arg>
       <Exposed/>
     </reqChangeData>
 

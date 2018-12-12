@@ -31,9 +31,9 @@ class LoginPoller:
 		self._loginList = []
 		KBEngine.addTimer(5, 5, self.CheckTimeOut)
 
-	def AddLoginList(self,loginName):
-		endTime = int(time.time()) + 10  #设置10秒超时时间
-		info = {'loginName':loginName, 'endTime':endTime}
+	def AddLoginList(self,loginName, password, datas, CallBack):
+		endTime = int(time.time()) + 8  #设置8秒超时时间
+		info = {'loginName':loginName,'password':password,'datas':datas,'CallBack':CallBack,'endTime':endTime}
 		self._loginList.append(info)
 		DEBUG_MSG("AddLoginList: %s" % (str(info)))
 	
@@ -43,29 +43,26 @@ class LoginPoller:
 				DEBUG_MSG("DelLoginList: %s" % (info['loginName']))
 				del self._loginList[index]
 
-	def CheckTimeOut(self,timerID):
+	def CheckTimeOut(self, timerID):
 		for index,info in enumerate(self._loginList):
-			if int(time.time()) >= info['endTime'] :
-				self._callback(info['loginName'], info['loginName'],self._Datas, KBEngine.SERVER_ERR_USER1)
+			if int(time.time()) >= info['endTime']:
+				self.ZLLogin(info['loginName'], info['password'], info['datas'], info['CallBack'])
 				DEBUG_MSG("超时CheckTimeOut: %s" % (info['loginName']))
 				del self._loginList[index]
 
 	#众联登录
-	def ZLLogin(self, loginName, password, datas, callBack):
-		self._callback = callBack
-		self._loginName = loginName
-		self._Datas = datas
+	def ZLLogin(self, loginName, password, datas, CallBack):
 		url = 'http://user.zgzlwy.top:9090/v1/user/loginnew?'
 		param = "account="+ loginName + "&password=" + password
 		http_client =  tornado.httpclient.AsyncHTTPClient()
-		http_client.fetch(url, method='POST', body=param,callback=self.onZLLoginResult)
-		self.AddLoginList(loginName)
+		http_client.fetch(url, method='POST', body=param, callback=Functor.Functor(self.onZLLoginResult,loginName,password,datas,CallBack) )
+		self.AddLoginList(loginName,password,datas,CallBack)
 
-	def onZLLoginResult(self, response):
+	def onZLLoginResult(self, loginName, password, datas, CallBack, response):
 		DEBUG_MSG("onZLLoginResult ...............................")
 		if response.error:
 			ERROR_MSG("ZLLogin Error: %s" % (response.error))
-			self._callback(self._loginName, self._loginName,self._Datas, KBEngine.SERVER_ERR_OP_FAILED)
+			self.ZLLogin(loginName, password, datas, CallBack)
 		else:
 			ZLLoginResult = response.body.decode('utf8')
 			Result = json.loads(ZLLoginResult)
@@ -84,38 +81,7 @@ class LoginPoller:
 			else:
 				err = KBEngine.SERVER_ERR_USER4 #登录失败
 			self.DelLoginList(loginName)
-			self._callback(loginName, realAccountName, response.body, err)
-
-
-	#微信登录
-	def wxLogin(self, loginCode, callBack):
-		self._callback = callBack
-		self._loginName = loginCode
-		#构建微信接口URL: https://api.weixin.qq.com/sns/jscode2session?appid=APPID&secret=SECRET&js_code=JSCODE&grant_type=authorization_code
-		values = {}
-		values['appid'] = GameConfigs.APPID
-		values['secret'] = GameConfigs.APP_SECRET
-		values['js_code'] = loginCode
-		values['grant_type'] = 'authorization_code'
-		query_string = parse.urlencode(values)
-		url = GameConfigs.WEI_XIN_URL + "?" + query_string
-
-		http_client =  tornado.httpclient.AsyncHTTPClient()
-		http_client.fetch(url, self.onWxLoginResult)
-
-	def onWxLoginResult(self, response):
-		DEBUG_MSG("onWxLoginResult .....")
-		if response.error:
-			ERROR_MSG("wx Error: %s" % (response.error))
-		else:
-			INFO_MSG(response.body)
-			wxLoginResult = response.body.decode('utf8')
-			DEBUG_MSG(wxLoginResult)
-			if wxLoginResult:
-				userInfo = eval(wxLoginResult)
-				realAccountName = userInfo["openid"]
-				DEBUG_MSG("wx login result, loginname: %s" % (self._loginName))
-				self._callback(self._loginName, realAccountName, response.body, KBEngine.SUCCESS)
+			CallBack(loginName, realAccountName, response.body, err)
 
 
 class IndexHandler(tornado.web.RequestHandler):
@@ -142,41 +108,38 @@ class Poller:
 		
 	#获得好友列表
 	def	GetFriendList(self, uid, callBack):
-		self._callback = callBack
 		url = 'http://user.zgzlwy.top:9090/v1/user/friendlist?uid=' + uid
 		http_client = tornado.httpclient.AsyncHTTPClient()
-		http_client.fetch(url, method='GET', body=None, callback=self.onGetFriendList)
+		http_client.fetch(url, method='GET', body=None, callback=Functor.Functor(self.onGetFriendList, callBack) )
 		DEBUG_MSG("GetFriendList:"+url)
 
-	def onGetFriendList(self, response):
+	def onGetFriendList(self, callBack, response):
 		DEBUG_MSG("onGetFriendList ...............................")
 		if response.error:
 			ERROR_MSG("onGetFriendList Error: %s" % (response.error))
-			self._callback(None)
+			callBack(None)
 		else:
 			strResult = response.body.decode('utf8')
 			Result = json.loads(strResult)
-			#DEBUG_MSG('FriendList Result:%s' % strResult)
-			self._callback(Result)
+			callBack(Result)
 
 	#获得E币, 众联的E币*100
 	def	GetEglod(self, uid, callBack):
-		self._callGetEglod = callBack
 		Value = (uid+'ZLNC123').encode(encoding='utf-8')
 		url = 'http://trade.zgzlwy.top:7070/v3/game/getecoin?uid=%s&sign=%s' % (uid,md5Value(Value) )
 		http_client = tornado.httpclient.AsyncHTTPClient()
-		http_client.fetch(url, method='GET', body=None, callback=self.onGetEglod)
+		http_client.fetch(url, method='GET', body=None, callback=Functor.Functor(self.onGetEglod,uid,callBack) )
 		DEBUG_MSG("GetEglod:"+url)
 
-	def onGetEglod(self, response):
+	def onGetEglod(self,uid,callBack, response):
 		if response.error:
 			ERROR_MSG("onGetEglod Error: %s" % (response.error))
-			self._callGetEglod(None)
+			self.GetEglod(uid, callBack)
 		else:
 			strResult = response.body.decode('utf8')
 			Result = json.loads(strResult)
 			DEBUG_MSG('onGetEglod Result:%s' % strResult)
-			self._callGetEglod(Result)
+			callBack(Result)
 	
 	#修改E币 本地E币 除 100
 	def ChangeEglod(self, uid, amount, ctype,item,comment):
@@ -184,12 +147,13 @@ class Poller:
 		Value = (uid+'ZLNC123').encode(encoding='utf-8')
 		param = 'uid=%s&amount=%f&ctype=%d&item=%s&comment=%s&sign=%s' % (uid,amount,ctype,item,comment,md5Value(Value))
 		http_client = tornado.httpclient.AsyncHTTPClient()
-		http_client.fetch(url, method='POST', body=param, callback=self.onChangeEglod)
+		http_client.fetch(url, method='POST', body=param, callback=Functor.Functor(self.onChangeEglod,uid, amount, ctype,item,comment) )
 		DEBUG_MSG("ChangeEglod:"+url+param)
 
-	def onChangeEglod(self, response):
+	def onChangeEglod(self, uid, amount, ctype,item,comment,response):
 		if response.error:
 			ERROR_MSG("onChangeEglod Error: %s" % (response.error))
+			self.ChangeEglod(uid, amount, ctype,item,comment)
 		else:
 			strResult = response.body.decode('utf8')
 			Result = json.loads(strResult)
@@ -198,22 +162,21 @@ class Poller:
 
 	#获得开元通宝
 	def	GetKglod(self, uid, callBack):
-		self._callGetKglod = callBack
 		Value = (uid+'ZLNC123').encode(encoding='utf-8')
 		url = 'http://trade.zgzlwy.top:7070/v3/game/getkcoin?uid=%s&sign=%s' % (uid,md5Value(Value))
 		http_client = tornado.httpclient.AsyncHTTPClient()
-		http_client.fetch(url, method='GET', body=None, callback=self.onGetKglod)
+		http_client.fetch(url, method='GET', body=None, callback=Functor.Functor(self.onGetKglod,uid,callBack) )
 		DEBUG_MSG("GetEglod:"+url)
 
-	def onGetKglod(self, response):
+	def onGetKglod(self, uid,callBack,response):
 		if response.error:
 			ERROR_MSG("onGetKglod Error: %s" % (response.error))
-			self._callGetKglod(None)
+			self.GetKglod(uid, callBack)
 		else:
 			strResult = response.body.decode('utf8')
 			Result = json.loads(strResult)
 			DEBUG_MSG('onGetKglod Result:%s' % strResult)
-			self._callGetKglod(Result)
+			callBack(Result)
 
 	#修改开元通宝
 	def ChangeKglod(self, uid, amount, ctype,item,comment):
@@ -221,12 +184,13 @@ class Poller:
 		Value = (uid+'ZLNC123').encode(encoding='utf-8')
 		param = 'uid=%s&amount=%f&ctype=%d&item=%s&comment=%s&sign=%s' % (uid,amount,ctype,item,comment,md5Value(Value))
 		http_client = tornado.httpclient.AsyncHTTPClient()
-		http_client.fetch(url, method='POST', body=param, callback=self.onChangeKglod)
-		DEBUG_MSG("ChangeKglod:"+url)
+		http_client.fetch(url, method='POST', body=param, callback=Functor.Functor(self.onChangeKglod, uid, amount, ctype, item, comment))
+		DEBUG_MSG("ChangeKglod:"+url+param)
 
-	def onChangeKglod(self, response):
+	def onChangeKglod(self, uid, amount, ctype, item, comment, response):
 		if response.error:
 			ERROR_MSG("onChangeKglod Error: %s" % (response.error))
+			self.ChangeKglod(uid, amount, ctype, item, comment)
 		else:
 			strResult = response.body.decode('utf8')
 			Result = json.loads(strResult)
@@ -234,33 +198,32 @@ class Poller:
 
 	#获得充值订单
 	def	GetRechargeOrder(self, device_type, diamond, RMB,uid,callBack):
-		self._callRecharg = callBack
-		url = 'http://121.201.74.172:80/pay/wxpayrecharge?'
+		url = 'http://120.79.192.49:80/pay/wxpayrecharge?'
 		param = 'device_type=%d&gain_amount=%d&pay_amount_fee=%d&remark=%s&uid=%s' % (device_type, diamond, RMB,'', uid)
 		http_client = tornado.httpclient.AsyncHTTPClient()
-		http_client.fetch(url, method='POST', body=param, callback=self.onRechargeOrderd)
+		http_client.fetch(url, method='POST', body=param, callback=Functor.Functor(self.onRechargeOrderd, device_type, diamond, RMB,uid,callBack))
 		DEBUG_MSG("GetRechargeOrder:"+url+param)
 
-	def onRechargeOrderd(self, response):
+	def onRechargeOrderd(self, device_type, diamond, RMB, uid, callBack, response):
 		if response.error:
 			ERROR_MSG("onRechargeOrderd Error: %s" % (response.error))
-			self._callRecharg(None)
+			self.GetRechargeOrder(device_type, diamond, RMB, uid, callBack)
 		else:
 			strResult = response.body.decode('utf8')
 			DEBUG_MSG('onRechargeOrderd Result:%s' % strResult)
-			self._callRecharg(strResult)
+			callBack(strResult)
 
 	#检查账号密码
 	def	CheckAccount(self, AccountName, Password, callBack):
 		url = 'http://user.zgzlwy.top:9090/v1/user/validateaccount?account=%s&passwd=%s' % (AccountName, Password) 
 		http_client = tornado.httpclient.AsyncHTTPClient()
-		http_client.fetch(url, method='GET', body=None, callback=Functor.Functor(self.onCheckAccount, callBack))
+		http_client.fetch(url, method='GET', body=None, callback=Functor.Functor(self.onCheckAccount,AccountName, Password, callBack))
 		DEBUG_MSG("CheckAccount:"+url)
 
-	def onCheckAccount(self, callBack, response):
+	def onCheckAccount(self, AccountName, Password, callBack, response):
 		if response.error:
 			ERROR_MSG("onCheckAccount Error: %s" % (response.error))
-			callBack(None)
+			self.CheckAccount(AccountName, Password, callBack)
 		else:
 			strResult = response.body.decode('utf8')
 			Result = json.loads(strResult)
@@ -269,15 +232,15 @@ class Poller:
 
 	#建验公众号是否绑定
 	def CheckBindWeChat(self, uid, callBack):
-		url = 'http://121.201.74.172:80/weixinmp/querysub?uid=%s' % uid
+		url = 'http://120.79.192.49:80/weixinmp/querysub?uid=%s' % uid
 		http_client = tornado.httpclient.AsyncHTTPClient()
-		http_client.fetch(url, method='GET', body=None, callback=Functor.Functor(self.onCheckBindWeChatd, callBack) )
+		http_client.fetch(url, method='GET', body=None, callback=Functor.Functor(self.onCheckBindWeChatd,uid, callBack) )
 		DEBUG_MSG("CheckBindWeChat:"+url)
 
-	def onCheckBindWeChatd(self, callBack, response):
+	def onCheckBindWeChatd(self,uid, callBack, response):
 		if response.error:
 			ERROR_MSG("onCheckBindWeChatd Error: %s" % (response.error))
-			callBack(None)
+			self.CheckBindWeChat(uid, callBack)
 		else:
 			strResult = response.body.decode('utf8')
 			Result = json.loads(strResult)
