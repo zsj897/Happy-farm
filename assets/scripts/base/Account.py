@@ -12,6 +12,7 @@ import Functor
 from GameRecord import *
 from Poller import *
 from ComFunc import *
+from GlobalDefine import *
 
 class Account(KBEngine.Proxy):
 
@@ -21,10 +22,8 @@ class Account(KBEngine.Proxy):
 		"""
 		在在线玩家列表注册自己
 		"""
-		#KBEngine.globalData["Halls"].reqAddPlayer(self)
-
+		self.poller = Poller()
 		self.cardSum = 134
-		
 		# 存放将要使用的卡组
 		self.willUseKz = -1
 		self.getClientTimeID = 0
@@ -38,17 +37,17 @@ class Account(KBEngine.Proxy):
 		if self.Data["FirstLogin"] == 0:
 			self.Data["FirstLogin"] = 1
 			self.FirstLogin()
-	
-		if self.Data["rank"]<1000:
-			self.Data["rank"] = 10001000
 		
 		self.onPlayingBattlefiled = None
 		self.onPlayingDestroy = False
 
 		self.TimerDestroyID = None
 		#两秒后更新E币，
-		self.addTimer(2,2,1)
-
+		self.addTimer(2,2,TIMER_CD_ACCOUNT_1)
+		
+		self.generatorFac = GeneratorFac()
+		self.addTimer(1,0.5,TIMER_CD_ACCOUNT_4)
+		
 	def FirstLogin(self):
 		# 初始化金钱
 		self.Data["money"] = 100000
@@ -63,18 +62,19 @@ class Account(KBEngine.Proxy):
 		@param id		: addTimer 的返回值ID
 		@param userArg	: addTimer 最后一个参数所给入的数据
 		"""
-		#DEBUG_MSG(id, userArg)
-		if userArg == 1:
+		if userArg == TIMER_CD_ACCOUNT_1:
 			#self.GiveCardList()
 			self.delTimer(id)
 			#更新E币和开元通宝
 			self.UpdateData()
-		elif userArg == 2:
+		elif userArg == TIMER_CD_ACCOUNT_2:
 			self.onGetClient()
-		elif userArg == 3:
+		elif userArg == TIMER_CD_ACCOUNT_3:
 			INFO_MSG("destroy :%i,%s" % (self.id,self.Data['name']))
 			self.destroy()
 			self.TimerDestroyID = None
+		elif userArg == TIMER_CD_ACCOUNT_4:
+			self.generatorFac.UpdateGenerator()
 
 	def onEntitiesEnabled(self):
 		"""
@@ -110,8 +110,9 @@ class Account(KBEngine.Proxy):
 		self.InitClientData()
 
 	def InitClientData(self):
-		if hasattr(self,'client'):
+		if hasattr(self,'client') and self.client:
 			self.reqData(0)
+			self.SendRankAwardInfo()
 
 	def onClientDeath(self):
 		"""
@@ -122,7 +123,7 @@ class Account(KBEngine.Proxy):
 		# 1:第一次登陆 2：不是第一次登陆
 		self.Data["FirstLogin"] = 2
 		#8秒后销毁实体,以适应断线重连
-		self.TimerDestroyID = self.addTimer(8,0,3)
+		self.TimerDestroyID = self.addTimer(8,0,TIMER_CD_ACCOUNT_3)
 		#self.destroy()
 		if self.onPlayingBattlefiled == None:
 			pass
@@ -136,9 +137,10 @@ class Account(KBEngine.Proxy):
 	#是否游客 true 是游客
 	def IsYK(self):
 		Name = self.AccountName()
-		if Name.find('yk') != -1:
+		if Name[0:2] == 'yk' and Name[2:0].isdigit():
 			return True
 		return False
+
 	#创建createEntityFromDBID 时无法获得__ACCOUNT_NAME__ ，所以只能保存
 	def AccountName(self):
 		if hasattr(self, '__ACCOUNT_NAME__'):
@@ -147,8 +149,8 @@ class Account(KBEngine.Proxy):
 
 	def UpdateData(self):
 		if not self.IsYK():
-			g_Poller.GetEglod(self.AccountName(),self.onUpdateEglod)
-			g_Poller.GetKglod(self.AccountName(),self.onUpdateKglod)
+			self.poller.GetEglod(self.AccountName(),self.onUpdateEglod)
+			self.poller.GetKglod(self.AccountName(),self.onUpdateKglod)
 	
 	def onUpdateEglod(self, Result):
 		if	Result['code'] == 1:
@@ -204,7 +206,7 @@ class Account(KBEngine.Proxy):
 		#头像
 		self.Data['Icon']=Icon
 		self.client.onChangeData('成功', self.Data, IsFristChange)
-		
+
 	#修改玩家基础数据，如金币，金蛋，开元通宝
 	def ChangeBaseData(self, priceType, value, Des):
 		if priceType == 1: #用游戏币购买
@@ -214,6 +216,8 @@ class Account(KBEngine.Proxy):
 			self.Data['money'] += value
 			if self.client is not None:
 				self.client.onMoney(self.Data['money'])
+			if value > 0 and Des != '钻石兑换游戏币':
+				KBEngine.globalData["Halls"].rank.ChangeRank('Money',value,self.Data['name'], self.AccountName(), self.databaseID)
 		elif priceType == 2:#用砖石购买
 			diamond = self.Data['diamond']
 			if value < 0 and diamond < abs(value):
@@ -221,6 +225,8 @@ class Account(KBEngine.Proxy):
 			self.Data['diamond'] += value
 			if self.client is not None:
 				self.client.onDiamond(self.Data['diamond'])
+			if value < 0:
+				KBEngine.globalData["Halls"].rank.ChangeRank('Diamond',abs(value),self.Data['name'], self.AccountName(),self.databaseID)
 		elif priceType == 3:#开元通宝
 			kglod = self.Data['kglod']
 			if value < 0 and kglod < abs(value):
@@ -228,7 +234,7 @@ class Account(KBEngine.Proxy):
 			self.Data['kglod'] += value
 			if self.client is not None:
 				self.client.onKglod(self.Data['kglod'])
-			g_Poller.ChangeKglod(self.AccountName(),abs(value)/100.00, 1 if value>=0 else 2,'众联农场',Des)
+			self.poller.ChangeKglod(self.AccountName(),abs(value)/100.00, 1 if value>=0 else 2,'众联农场',Des)
 		elif priceType == 4:#E币
 			eglod = self.Data['eglod']
 			if value < 0 and eglod < abs(value):
@@ -236,7 +242,9 @@ class Account(KBEngine.Proxy):
 			self.Data['eglod'] += value
 			if self.client is not None:
 				self.client.onEglod(self.Data['eglod'])
-			g_Poller.ChangeEglod(self.AccountName(),abs(value)/100.00, 1 if value>=0 else 2,'众联农场',Des)
+			if value > 0:
+				KBEngine.globalData["Halls"].rank.ChangeRank('Eglod',value,self.Data['name'], self.AccountName(),self.databaseID)
+			self.poller.ChangeEglod(self.AccountName(),abs(value)/100.00, 1 if value>=0 else 2,'众联农场',Des)
 		#游戏金钱日志
 		GameMoneyRecord(self.AccountName(),self.databaseID,priceType,value,Des)
 		return 0
@@ -249,21 +257,10 @@ class Account(KBEngine.Proxy):
 		if DBID == 0:
 			self.client.onData(self.Data,self.databaseID)
 			DEBUG_MSG("reqData:%s" % str(self.Data))
-		else:
-			KBEngine.createEntityFromDBID("Account",DBID,Functor.Functor(self.CallBackData))
-
-	def CallBackData(self,baseRef,databaseID,wasActive):
-		if baseRef is None:
-			DEBUG_MSG("CallBackData baseRef error:%i" % databaseID)
-			g_Generator.Set(databaseID,self.CallBackData)
-		else:
-			self.client.onData(baseRef.Data,databaseID)
-			if not wasActive:
-				baseRef.destroy()
 
 	#绑定游客账号
 	def reqBindAccount(self,AccountName,Password):
-		g_Poller.CheckAccount(AccountName, Password, self.OnBindAccount)
+		self.poller.CheckAccount(AccountName, Password, self.OnBindAccount)
 
 	def OnBindAccount(self, Result):
 		if Result['status'] == 0:
@@ -286,8 +283,132 @@ class Account(KBEngine.Proxy):
 			self.__ACCOUNT_NAME__ = uid
 		else:
 			self.client.onBindAccount('绑定失败，账号已有游戏数据')
-			
 
+	def reqTotalRank(self,Type):
+		rankList = KBEngine.globalData["Halls"].rank.GetBuffTotalRank(Type)
+		if not rankList:
+			self.client.onTotalRank(Type, [{'uid':'','rank':0,'playerName':'','score':0}] )
+			DEBUG_MSG("Total rankList is none")
+			return
+		Rank_List = []
+		num = 0
+		for rankInfo in rankList:
+			if num >= 5:
+				self.client.onTotalRank(Type, Rank_List)
+				Rank_List =[]
+				num = 0
+				DEBUG_MSG("send 25 Total Rank data" )
+			Rank_List.append({'uid':rankInfo[0],'rank':rankInfo[2],'playerName':rankInfo[3],'score':rankInfo[1]})
+			num +=1
+		if Rank_List:
+			self.client.onTotalRank(Type, Rank_List)
+			DEBUG_MSG("other Total Rank data:%i" %  num)
+
+
+	def reqWeekRank(self,Type):
+		rankList = KBEngine.globalData["Halls"].rank.GetBuffWeekRank(Type)
+		if not rankList:
+			self.client.onWeekRank(Type, [{'uid':'','rank':0,'playerName':'','score':0}] )
+			DEBUG_MSG("Week rankList is none")
+			return
+		Rank_List = []
+		num = 0
+		for rankInfo in rankList:
+			if num >= 5:
+				self.client.onWeekRank(Type, Rank_List)
+				Rank_List =[]
+				num = 0
+				DEBUG_MSG("send 25 week Rank data" )
+			Rank_List.append({'uid':rankInfo[0],'rank':rankInfo[2],'playerName':rankInfo[3],'score':rankInfo[1]})
+			num +=1
+		if Rank_List:
+			self.client.onWeekRank(Type, Rank_List)
+			DEBUG_MSG("other week Rank data:%i" %  num)
+
+	def reqTotalself(self,Type):
+		rank, score, nextRefreshTime = KBEngine.globalData["Halls"].rank.GetTotalOwenrRank(Type, self.AccountName())
+		rank = int(rank) if rank is not None else 0
+		score = int(score) if score is not None else 0
+		titleInfo = KBEngine.globalData["Halls"].rank.GetTitle(Type,rank,score)
+		title = titleInfo['title'] if titleInfo is not None else ''
+		self.client.onTotalself(Type,rank,score,title,nextRefreshTime)
+		DEBUG_MSG("reqTotalself:%s, title:%s，rank:%i,socre:%i,nextRefreshTime:%i" % (Type, title, rank,score,nextRefreshTime) )
+
+	def reqWeekself(self,Type):
+		cur_rank, cur_score, Last_rank , Last_score, Best_rank, Best_score = KBEngine.globalData["Halls"].rank.GetWeekOwenrRank(Type, self.AccountName())
+		#当前
+		cur_rank = int(cur_rank) if cur_rank is not None else 0
+		cur_score = int(cur_score) if cur_score is not None else 0
+		cur_titleInfo = KBEngine.globalData["Halls"].rank.GetTitle(Type,cur_rank,cur_score)
+		cur_title = cur_titleInfo['title'] if cur_titleInfo is not None else ''
+		#上周
+		Last_score = int(Last_score) if Last_score is not None else 0
+		Last_rank = int(Last_rank) if Last_rank is not None else 0
+		last_titleInfo = KBEngine.globalData["Halls"].rank.GetTitle(Type,Last_rank,Last_score)
+		last_title = last_titleInfo['title'] if last_titleInfo is not None else ''
+		#最佳
+		Best_score = int(Best_score) if Best_score is not None else 0
+		Best_rank = int(Best_rank) if Best_rank is not None else 0
+		best_titleInfo = KBEngine.globalData["Halls"].rank.GetTitle(Type,Best_rank,Best_score)
+		best_title = best_titleInfo['title'] if best_titleInfo is not None else ''
+		rank_record = []
+		rank_record.append({'type':'当前','rank':cur_rank,'title':cur_title, 'score':cur_score})
+		rank_record.append({'type':'上周','rank':Last_rank,'title':last_title, 'score':Last_score})
+		rank_record.append({'type':'最佳','rank':Best_rank,'title':best_title, 'score':Best_score})
+		self.client.onWeekself(Type,rank_record)
+		DEBUG_MSG("reqWeekself tilte:%s, %s, %s, %s" % (Type, cur_title, last_title, best_title ) )
+		DEBUG_MSG("reqWeekself rank:%s, %i, %i, %i" % (Type, cur_rank, Last_rank, Best_rank ) )
+
+	def SendRankAwardInfo(self):
+		RankAward = []
+		AccountName = self.AccountName()
+		#钻石
+		DiamondAward = KBEngine.globalData["Halls"].rank.GetPlayerAward('Diamond',AccountName)
+		if DiamondAward:
+			RankAward.append({'Type':'Diamond', 'award':DiamondAward})
+		#宠物
+		PetAward = KBEngine.globalData["Halls"].rank.GetPlayerAward('Pet',AccountName)
+		if PetAward:
+			RankAward.append({'Type':'Pet', 'award':PetAward})
+		#游戏币
+		MoneyAward = KBEngine.globalData["Halls"].rank.GetPlayerAward('Money',AccountName)
+		if MoneyAward:
+			RankAward.append({'Type':'Money', 'award':MoneyAward})
+		#E币
+		EglodAward = KBEngine.globalData["Halls"].rank.GetPlayerAward('Eglod',AccountName)
+		if EglodAward:
+			RankAward.append({'Type':'Eglod', 'award':EglodAward})
+		if RankAward:
+			self.client.onRankAward(RankAward)
+		else:
+			self.client.onRankAward([{'Type':'', 'award':''}])
+		
+
+	def reqSendRankAward(self):
+		AccountName = self.AccountName()
+		#发送奖励邮件
+		#钻石
+		DiamondAward = KBEngine.globalData["Halls"].rank.GetPlayerAward('Diamond',AccountName)
+		if DiamondAward:
+			KBEngine.globalData["Halls"].SendMailMessage2(self.databaseID, 6001, DiamondAward)
+		#宠物
+		PetAward = KBEngine.globalData["Halls"].rank.GetPlayerAward('Pet',AccountName)
+		if PetAward:
+			KBEngine.globalData["Halls"].SendMailMessage2(self.databaseID, 6002, PetAward)
+		#游戏币
+		MoneyAward = KBEngine.globalData["Halls"].rank.GetPlayerAward('Money',AccountName)
+		if MoneyAward:
+			KBEngine.globalData["Halls"].SendMailMessage2(self.databaseID, 6003, MoneyAward)
+		#E币
+		EglodAward = KBEngine.globalData["Halls"].rank.GetPlayerAward('Eglod',AccountName)
+		if EglodAward:
+			KBEngine.globalData["Halls"].SendMailMessage2(self.databaseID, 6004, EglodAward)
+		#清空上周排行奖励
+		KBEngine.globalData["Halls"].rank.ClearAwardKey(AccountName)
+
+	#--------------------------------------------------------------------------------------------
+	#                              old func
+	#--------------------------------------------------------------------------------------------
 	def reqBuyWithGold(self,sum1):
 		DEBUG_MSG("Account[%i].BuyWithGold:" % self.id)
 		sum=int(sum1)
@@ -375,7 +496,7 @@ class Account(KBEngine.Proxy):
 			if self.client!=None and self.clientControl:
 				self.getClientPrc()
 			else:
-				self.getClientTimeID = self.addTimer(1,1,2)
+				self.getClientTimeID = self.addTimer(1,1,TIMER_CD_ACCOUNT_2)
 		else:
 			if self.client!=None and self.clientControl:
 				self.getClientPrc()
@@ -440,12 +561,12 @@ class Account(KBEngine.Proxy):
 			self.getClientPrc()
 			return
 
-		rank = self.Data["rank"]
+		# = self.Data["rank"]
 
 		if self.client == None:
 			return
 
-		self.client.battleResultClientDisplay(success,rank)
+		#self.client.battleResultClientDisplay(success,rank)
 
 	def displayBattleResult(self):
 		pass

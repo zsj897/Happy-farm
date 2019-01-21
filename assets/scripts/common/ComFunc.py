@@ -89,5 +89,53 @@ class Generator:
                 ERROR_MSG("超出范围，arglist 大于4 ")
             INFO_MSG("Generator Get:%s" % str(self.UnitList[0]) )
             del self.UnitList[0]
+
+#生产器工厂
+class GeneratorFac:
+    def __init__(self):
+        self.GeneratorList = []
+
+    def BuildGenerator(self,TypeName):
+        if self.GetGenerator(TypeName):
+            return
+        generator = Generator()
+        self.GeneratorList.append({'TypeName':TypeName, 'generator':generator})
+
+    def GetGenerator(self,TypeName):
+        for info in self.GeneratorList:
+            if info['TypeName'] == TypeName:
+                return info['generator']
+        return None
+
+    def UpdateGenerator(self):
+        for info in self.GeneratorList:
+            info['generator'].Get()
+
+#字符串操作
+def AddSplitStr(dct,key,value):
+    if dct[key] == '':
+        dct[key] += str(value)
+    else:
+	    dct[key] += '$' + str(value)
+	
+def GetSplitStr(Str,index):
+	List = Str.split('$')
+	return List[index]
+	
+def ChangeSplitStr(dct,key,index,value):
+	List = dct[key].split('$')
+	List[index] = value
+	dct[key] = ''
+	for index,info in enumerate(List):
+		if index == 0:
+			dct[key] += info
+		else:
+			dct[key] += '$' + info
+
+def FindSplitStr(Str, findstr, symbol = ','):
+    List = Str.split(symbol)
+    for info in List:
+        if info == findstr:
+            return True
+    return False
             
-g_Generator = Generator()

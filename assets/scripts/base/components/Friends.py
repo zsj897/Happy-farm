@@ -10,7 +10,7 @@ from ComFunc import *
 class Friends(KBEngine.EntityComponent):
     def __init__(self):
         KBEngine.EntityComponent.__init__(self)
-         
+        
     def onAttached(self, owner):
         #DEBUG_MSG("Friends::onAttached(): owner=%i" % (owner.id))
         self.CheckYaoEndTime(int(time.time()))
@@ -35,10 +35,11 @@ class Friends(KBEngine.EntityComponent):
         self.InitClientData()
 
     def InitClientData(self):
-        if hasattr(self,'client'):
+        if hasattr(self,'client') and self.client:
             self.reqYaoShuStatus()
             self.reqAllSysMessage('普通消息')
             self.reqAllSysMessage('消费记录')
+            self.reqAllSysMessage('邮箱奖励')
 
     #客户端断线
     def onClientDeath(self):
@@ -74,39 +75,49 @@ class Friends(KBEngine.EntityComponent):
         """
         if userArg == TIMER_CD_LAND_5:
             self.CheckYaoEndTime(int(time.time()))
+            self.CheckMessageTime()
         if userArg == TIMER_CD_FRIEND_DATA_7:
             if not self.owner.IsYK():
-                g_Poller.GetFriendList(self.owner.AccountName(), self.InitFriendList)
+                self.owner.poller.GetFriendList(self.owner.AccountName(), self.InitFriendList)
        
     def Component(self,name):
         return self.owner.getComponent(name)
+
+    def GetGenerator(self,TypeName):
+        return self.owner.generatorFac.GetGenerator(TypeName)
+
+    def BuildGenerator(self,TypeName):
+        if self.owner is not None:
+            self.owner.generatorFac.BuildGenerator(TypeName)
+
     """
+    ======================================================================================
 	系统消息
     """
-    def GetConfigSysMessage(self, MesaageID):
+    def GetConfigSysMessage(self, MessageID):
         try:
-            Info = d_game.sysmessage[MesaageID]
+            Info = d_game.sysmessage[MessageID]
         except (IndexError, KeyError) as e:
-            ERROR_MSG("GetConfigSysMessage error:%s, MesaageID:%i" % (str(e), MesaageID))
+            ERROR_MSG("GetConfigSysMessage error:%s, MessageID:%i" % (str(e), MessageID))
             return None
         return Info
 
     #消息系统
-    def SYSMessage(self, DBID, MesaageID, Time, *arg):
-        d_sysmessage = self.GetConfigSysMessage(MesaageID)
+    def SYSMessage(self, DBID, MessageID, Time, *arg):
+        d_sysmessage = self.GetConfigSysMessage(MessageID)
         if d_sysmessage is None:
             return
         MessageType = d_sysmessage['Type']
         MesaageUUID = KBEngine.genUUID64()
-        MessageInfo = {'MesaageUUID':MesaageUUID, 'time':Time ,'MesaageID':MesaageID}
-        MessageInfo['ArgList'] = []
+        MessageInfo = {'MesaageUUID':MesaageUUID, 'time':Time ,'MessageID':MessageID, 'Endtime':0}
+        MessageInfo['ArgList'] = ''
         for argValue in arg:
             Value = ''
             if isinstance(argValue, str):
                 Value = argValue
             else:
                 Value = str(argValue)
-            MessageInfo['ArgList'].append(Value)
+            AddSplitStr(MessageInfo,'ArgList',Value)
         if DBID == 0:
             self.WriteSysMessage(MessageInfo,MessageType)
         else:
@@ -116,12 +127,15 @@ class Friends(KBEngine.EntityComponent):
                 Friends = Entity.getComponent("Friends")
                 Friends.WriteSysMessage(MessageInfo,MessageType)
             else: #离线
+                self.BuildGenerator('onFriendSysMessage')
                 KBEngine.createEntityFromDBID("Account",DBID,Functor.Functor(self.onFriendSysMessage,MessageInfo,MessageType))
+                
 			
     def onFriendSysMessage(self,MessageInfo,MessageType,baseRef,databaseID,wasActive):
         if baseRef is None:
             DEBUG_MSG("onFriendSysMessage baseRef error:%i" % databaseID)
-            g_Generator.Set(databaseID,self.onFriendSysMessage,MessageInfo,MessageType)
+            if self.owner is not None:
+                self.GetGenerator('onFriendSysMessage').Set(databaseID,self.onFriendSysMessage,MessageInfo,MessageType)
         else:
             Friends = baseRef.getComponent("Friends")
             Friends.WriteSysMessage(MessageInfo,MessageType)
@@ -133,7 +147,7 @@ class Friends(KBEngine.EntityComponent):
         minTime = int(time.time() )
         minIndex = 0
         for Index,Message in enumerate(self.SysMessage):
-            d_sysmessage = self.GetConfigSysMessage(Message['MesaageID'])
+            d_sysmessage = self.GetConfigSysMessage(Message['MessageID'])
             if d_sysmessage is not None and d_sysmessage['Type'] == MessageType:
                 if minTime > Message['time']:
                     minTime = Message['time']
@@ -150,25 +164,36 @@ class Friends(KBEngine.EntityComponent):
             return
         self.SysMessage.append(MessageInfo)
         self.SetMessageRead(MessageType,1)
-        if hasattr(self,'client'):
+        if hasattr(self,'client') and self.client:
             self.client.onSysMessage(MessageInfo)
         INFO_MSG("WriteSysMessage:%s" % str(MessageInfo) )
 
     #过滤消息（邀请偷树消息）
     def FilterSysMessage(self, MessageInfo):
-        if MessageInfo['MesaageID'] != 3005 and MessageInfo['MesaageID'] != 3006:
+        if MessageInfo['MessageID'] != 3005 and MessageInfo['MessageID'] != 3006:
             return False
         for Message in self.SysMessage:
-            if Message['MesaageID'] == 3005:
-                if (Message['ArgList'] and Message['ArgList'][len(Message['ArgList'])-1] == '0' and  #未处理
-                    Message['ArgList'][0] == MessageInfo['ArgList'][0] and                          #邀请人相同
-                    int(time.time()) < int(Message['ArgList'][2]) ):                                #时间未过期
+            if Message['MessageID'] == 3005:
+                MessageDBID = GetSplitStr(Message['ArgList'],0)
+                MessageInfoDBID = GetSplitStr(MessageInfo['ArgList'],0)
+                messagetime = int(GetSplitStr(MessageInfo['ArgList'],2))
+                state = GetSplitStr(MessageInfo['ArgList'],-1)
+                if (Message['ArgList'] != '' and 
+                    state == '0' and                                       #未处理
+                    MessageDBID == MessageInfoDBID and                     #邀请人相同
+                    int(time.time()) < messagetime ):                      #时间未过期
                     DEBUG_MSG("FilterSysMessage 3005:%s" % str(Message) )
                     return True
-            elif Message['MesaageID'] == 3006:
-                if (Message['ArgList'] and Message['ArgList'][len(Message['ArgList'])-1] == '0' and #未处理
-                    Message['ArgList'][0] == MessageInfo['ArgList'][0] and                          #邀请人相同
-                    Message['ArgList'][3] == MessageInfo['ArgList'][3]):                            #被邀请人相同
+            elif Message['MessageID'] == 3006:
+                MessageDBID = GetSplitStr(Message['ArgList'],0)
+                MessageInfoDBID = GetSplitStr(MessageInfo['ArgList'],0)
+                MessagebyDBID = int(GetSplitStr(Message['ArgList'],3))
+                MessageInfobyDBID = int(GetSplitStr(MessageInfo['ArgList'],3))
+                state = GetSplitStr(MessageInfo['ArgList'],-1)
+                if (Message['ArgList'] != '' and 
+                    state == '0' and                                        #未处理
+                    MessageDBID == MessageInfoDBID and                      #邀请人相同
+                    MessagebyDBID == MessageInfobyDBID):                    #被邀请人相同
                     DEBUG_MSG("FilterSysMessage 3006:%s" % str(Message) )    
                     return True
         return False
@@ -176,7 +201,7 @@ class Friends(KBEngine.EntityComponent):
     #清空消息
     def ClearMessage(self, MessageType):
         for Index,Message in enumerate(self.SysMessage):
-            d_sysmessage = self.GetConfigSysMessage(Message['MesaageID'])
+            d_sysmessage = self.GetConfigSysMessage(Message['MessageID'])
             if d_sysmessage is None:
                 continue
             if d_sysmessage['Type'] == MessageType:
@@ -188,9 +213,9 @@ class Friends(KBEngine.EntityComponent):
             return
         for Message in self.SysMessage:
             if Message['MesaageUUID'] == MesaageUUID:
-                if Message['ArgList']:
-                    Message['ArgList'][-1] = str(State)
-                    if hasattr(self,'client'):
+                if Message['ArgList'] != '':
+                    ChangeSplitStr(Message,'ArgList',-1,str(State))
+                    if hasattr(self,'client') and self.client:
                         self.client.onSysMessage(Message)
                 DEBUG_MSG("ChangeMessageState:%s" % (str(Message)) )
 
@@ -200,7 +225,7 @@ class Friends(KBEngine.EntityComponent):
         MessageList2 = []
         Count = 0
         for Message in self.SysMessage:
-            d_sysmessage = self.GetConfigSysMessage(Message['MesaageID'])
+            d_sysmessage = self.GetConfigSysMessage(Message['MessageID'])
             if d_sysmessage is not None and d_sysmessage['Type'] == MessageType:
                 if Count < 15:
                     MessageList1.append(Message)
@@ -213,27 +238,60 @@ class Friends(KBEngine.EntityComponent):
             if MessageList2:
                 self.client.onAllSysMessage(MessageType,MessageList2)
         else:
-            self.client.onAllSysMessage(MessageType,[{'MesaageUUID':0, 'time':0 ,'MesaageID':0,'ArgList':['']}])
-        self.client.onReadMessage(self.NoReadNum)
+            self.client.onAllSysMessage(MessageType,[{'MesaageUUID':0, 'time':0 ,'MessageID':0,'Endtime':0,'ArgList':''}])
+        self.client.onReadMessage(self.NoReadNum1,self.NoReadNum2,self.NoReadNum3)
         DEBUG_MSG("reqAllSysMessage MessageList1:%s,%s" % (MessageType,str(MessageList1) ) )
         DEBUG_MSG("reqAllSysMessage MessageList2:%s,%s" % (MessageType,str(MessageList2) ) )
 
-    def reqReadMessage(self):
-        self.SetMessageRead('清空',0)
+    def reqReadMessage(self, MessageType):
+        self.SetMessageRead(MessageType,0)
        
     def SetMessageRead(self, MessageType, NoReadNum):
-        if MessageType == '清空':
-            self.NoReadNum = 0
-        elif MessageType == '管家日志':
-            pass
-        else:
-            if self.NoReadNum < 60:
-                self.NoReadNum += NoReadNum 
-        if hasattr(self,'client'):
-            self.client.onReadMessage(self.NoReadNum)
+        if self.NoReadNum1+self.NoReadNum2+self.NoReadNum3 < 90:
+            if MessageType == '普通消息':
+                self.NoReadNum1 = 0 if NoReadNum == 0 else self.NoReadNum1+NoReadNum
+            if MessageType == '消费记录':
+                self.NoReadNum2 = 0 if NoReadNum == 0 else self.NoReadNum2+NoReadNum
+            if MessageType == '邮箱奖励':
+                self.NoReadNum3 = 0 if NoReadNum == 0 else self.NoReadNum3+NoReadNum
+        if  hasattr(self,'client') and self.client:
+                self.client.onReadMessage(self.NoReadNum1,self.NoReadNum2,self.NoReadNum3)
 
-     
+    def FindMessageByUUID(self,MesaageUUID):
+        for index,Message in enumerate(self.SysMessage):
+            if Message['MesaageUUID'] == MesaageUUID:
+                return index,Message
+        return 0,None
+
+    #领奖
+    def reqMessageAward(self, MesaageUUID):
+        index,Message = self.FindMessageByUUID(MesaageUUID)
+        if Message:
+            List = Message['ArgList'].split('$')
+            List.pop()
+            DEBUG_MSG("reqMessageAward List:%s" % str(List) )
+            for idx,info in enumerate(List):
+                if (idx+1)%2 != 0:
+                    awardType = int(info)
+                else:
+                    awardValue = int(info)
+                    self.Component("bags").AddItem(awardType, awardValue, '邮箱领奖' )
+                    DEBUG_MSG("reqMessageAward:%i,%i" % (awardType, awardValue) )
+            self.client.onMessageAward('成功', MesaageUUID)
+            del self.SysMessage[index]
+        else:
+            ERROR_MSG('MesaageUUID is error')
+
+    #检测消息时间
+    def CheckMessageTime(self):
+        nowtime = int(time.time())
+        for index,Message in enumerate(self.SysMessage):
+            if Message['Endtime'] != 0 and nowtime > Message['Endtime']:
+                DEBUG_MSG("delete message:%s" % str(Message) )
+                del self.SysMessage[index]
+                
     """
+    ===========================================================================================
 	好友列表
     """
     def sqlcallback(self,CurCount,MaxCount,result, rows, insertid, error):
@@ -254,7 +312,6 @@ class Friends(KBEngine.EntityComponent):
                 self.reqFriendList()
                 self.reqYaoShuStatus()
                 self.FriendState = 2  
-                self.CheckFriendCanSteal()
                 self.OpenFriendList('成功')
                 DEBUG_MSG("FriendList 从数据库加载完毕! %d,%d " % (CurCount, MaxCount))
 
@@ -303,12 +360,12 @@ class Friends(KBEngine.EntityComponent):
 
     def	reqFriendList(self):
         self.GetClientFriendList(self.FriendList)
-        if hasattr(self,'client'):
+        if hasattr(self,'client') and self.client:
             self.client.onFriendList(self.FriendList)  
             DEBUG_MSG("reqFriendList num:%d, FriendList:%s" % (len(self.FriendList), str(self.FriendList) ) )
 
     def OpenFriendList(self, Msg):
-        if hasattr(self,'client'):
+        if hasattr(self,'client') and self.client:
             self.client.onOpenFriendList(Msg)
 
     def getFrendInfo(self, UID):
@@ -357,7 +414,7 @@ class Friends(KBEngine.EntityComponent):
         for ApplyInfo in self.ApplyList:
             if ApplyInfo['DBID'] == DBID :
                 ApplyInfo['IsYao'] = IsYao
-                if hasattr(self,'client'):
+                if hasattr(self,'client') and self.client:
                     self.client.onYaoShuStatus(self.ApplyList,self.AcceptList,self.YaoEndTime)
                 DEBUG_MSG("ChangeApplyList:%s" % (str(ApplyInfo)) )
     #接受请求
@@ -411,7 +468,7 @@ class Friends(KBEngine.EntityComponent):
         #清空列表
         self.ApplyList = []
         self.YaoEndTime = 0
-        if hasattr(self,'client'):
+        if hasattr(self,'client') and self.client:
             self.client.onYaoShuStatus(self.ApplyList,self.AcceptList,self.YaoEndTime)
         DEBUG_MSG("ClearMaster:%s,%s,%i" % ( self.ApplyList,self.AcceptList, self.YaoEndTime ) )
 
@@ -426,7 +483,8 @@ class Friends(KBEngine.EntityComponent):
         INFO_MSG("CallBackOtherYaoShu:%i,%i" % (databaseID, wasActive) )
         if baseRef is None:
             DEBUG_MSG("CallBackOtherYaoShu baseRef error:%i" % databaseID)
-            g_Generator.Set(databaseID,self.CallBackOtherYaoShu,YaoEndTime,MasterName,playerNum,ItemIDList)
+            # if self.owner is not None:
+            #     self.GetGenerator('CallBackOtherYaoShu').Set(databaseID,self.CallBackOtherYaoShu,YaoEndTime,MasterName,playerNum,ItemIDList)
         else:
             #获得收益
             Friends = baseRef.getComponent("Friends")
@@ -510,13 +568,15 @@ class Friends(KBEngine.EntityComponent):
 	#摇树，需要客户端传递对应的消息，来更新消息状态
     def reqYaoShu(self, DBID, MesaageUUID ):
         DEBUG_MSG("reqYaoShu:%i" % (DBID) )
+        self.BuildGenerator('CallbackYaoShu')
         KBEngine.createEntityFromDBID("Account", DBID, Functor.Functor(self.CallbackYaoShu))
         self.ChangeMessageState(MesaageUUID, 3)
 
     def CallbackYaoShu(self, baseRef, databaseID, wasActive):
         if baseRef is None:
             DEBUG_MSG("CallbackYaoShu baseRef error:%i" % databaseID)
-            g_Generator.Set(databaseID,self.CallbackYaoShu)
+            if self.owner is not None:
+                self.GetGenerator('CallbackYaoShu').Set(databaseID,self.CallbackYaoShu)
         else:
             Friends = baseRef.getComponent("Friends")
             Land = baseRef.getComponent("Land")
@@ -540,7 +600,7 @@ class Friends(KBEngine.EntityComponent):
 	 获得摇树状态，申请列表，接受列表
 	'''
     def reqYaoShuStatus(self):
-        if hasattr(self,'client'):
+        if hasattr(self,'client') and self.client:
             self.client.onYaoShuStatus(self.ApplyList,self.AcceptList,self.YaoEndTime)
         DEBUG_MSG("reqYaoShuStatus:%i, %s, %s" % (self.owner.databaseID, str(self.ApplyList),str(self.AcceptList) ) )
 
@@ -594,69 +654,132 @@ class Friends(KBEngine.EntityComponent):
 	'''
     #好友家使用
     #DBIDList:偷者的DBID的列表, ByDBID: 被偷者的DBID
+    # def reqCheckCanSteal(self, DBIDList , ByDBID):
+    #     self.BuildGenerator('CallBackCheckSteal')
+    #     KBEngine.createEntityFromDBID("Account", ByDBID, Functor.Functor(self.CallBackCheckSteal,DBIDList))
+
+    # def CallBackCheckSteal(self, DBIDList, baseRef, databaseID, wasActive):
+    #     if baseRef is None:
+    #         DEBUG_MSG("CallBackCheckSteal baseRef error:%i" % databaseID)
+    #         if self.owner is not None:
+    #             self.GetGenerator('CallBackCheckSteal').Set(databaseID,self.CallBackCheckSteal,DBIDList)
+    #     else:
+    #         Land = baseRef.getComponent("Land")
+    #         CanStealList = []
+    #         for DBID in DBIDList:
+    #             IsCan, LandList = Land.IsAllCanSteal(DBID)
+    #             CanStealList.append({'DBID':DBID,'CanSteal':IsCan})
+    #         self.client.onCheckCanSteal(CanStealList, databaseID)
+    #         DEBUG_MSG("CallBackCheckSteal:%s,%i" % (str(CanStealList),databaseID) )
+    #         if not wasActive:
+    #             baseRef.destroy()
+
+    # #消息框使用
+    # #DBID:偷者的DBID, ByDBID: 被偷者的DBID
+    # def reqCheckMessageCanSteal(self, DBID , ByDBID, MesaageUUID):
+    #     self.BuildGenerator('CallBackCheckMessageCanSteal')
+    #     KBEngine.createEntityFromDBID("Account", ByDBID, Functor.Functor(self.CallBackCheckMessageCanSteal,DBID,MesaageUUID))
+
+    # def CallBackCheckMessageCanSteal(self, DBID,MesaageUUID, baseRef, databaseID, wasActive):
+    #     if baseRef is None:
+    #         DEBUG_MSG("CallBackCheckMessageCanSteal baseRef error:%i" % databaseID)
+    #         if self.owner is not None:
+    #             self.GetGenerator('CallBackCheckMessageCanSteal').Set(databaseID,self.CallBackCheckMessageCanSteal,DBID,MesaageUUID)
+    #     else:
+    #         Land = baseRef.getComponent("Land")
+    #         IsCan, LandList = Land.IsAllCanSteal(DBID)   
+    #         self.client.onCheckMessageCanSteal(IsCan, MesaageUUID)
+    #         DEBUG_MSG("CallBackCheckMessageCanSteal:%i,%i" % (IsCan,MesaageUUID) )
+    #         if not wasActive:
+    #             baseRef.destroy()
+    
+    # def CheckFriendCanSteal(self):
+    #     CurCount = 0
+    #     INFO_MSG("CheckFriendCanSteal:%i" % len(self.FriendList))
+    #     for friendInfo in self.FriendList:
+    #         CurCount += 1
+    #         KBEngine.createEntityFromDBID("Account", friendInfo['DBID'], 
+    #         Functor.Functor(self.CallBackCheckFriendCanSteal,self.owner.databaseID,CurCount,len(self.FriendList)) )
+
+    # def CallBackCheckFriendCanSteal(self, DBID,CurCount,MaxCount, baseRef, databaseID, wasActive):
+    #     if baseRef is None:
+    #         DEBUG_MSG("CallBackCheckFriendCanSteal baseRef error:%i" % databaseID)
+    #     else:
+    #         Land = baseRef.getComponent("Land")
+    #         IsCan, LandList = Land.IsAllCanSteal(DBID)   
+    #         self.ChangeFriendInfo(databaseID,'CanSteal', int(IsCan) )
+    #         if CurCount >= MaxCount: 
+    #             self.reqFriendList()
+    #             DEBUG_MSG("CallBackCheckFriendCanSteal %d,%d" %(CurCount, MaxCount) )
+    #         if not wasActive:
+    #             baseRef.destroy()
+    '''
+	 陌生人检测是否可偷
+	'''
+    #批量检测好友是否可偷
+    #DBIDList:偷者的DBID的列表, ByDBID: 被偷者的DBID
     def reqCheckCanSteal(self, DBIDList , ByDBID):
-        KBEngine.createEntityFromDBID("Account", ByDBID, Functor.Functor(self.CallBackCheckSteal,DBIDList))
+        self.IsCanStealList = []
+        self.StealCount = 0 
+        self.StealMaxCount = len(DBIDList)
+        for stealDBID in DBIDList:
+            self.CheckCanSteal(stealDBID,ByDBID, self.CheckCanStealCallback )
 
-    def CallBackCheckSteal(self, DBIDList, baseRef, databaseID, wasActive):
-        if baseRef is None:
-            DEBUG_MSG("CallBackCheckSteal baseRef error:%i" % databaseID)
-            g_Generator.Set(databaseID,self.CallBackCheckSteal,DBIDList)
-        else:
-            Land = baseRef.getComponent("Land")
-            CanStealList = []
-            for DBID in DBIDList:
-                IsCan, LandList = Land.IsAllCanSteal(DBID)
-                CanStealList.append({'DBID':DBID,'CanSteal':IsCan})
-            self.client.onCheckCanSteal(CanStealList, databaseID)
-            DEBUG_MSG("CallBackCheckSteal:%s,%i" % (str(CanStealList),databaseID) )
-            if not wasActive:
-                baseRef.destroy()
+    def CheckCanStealCallback(self, stealDBID, ByStealDBID, IsCanSteal):
+        self.IsCanStealList.append({'DBID':stealDBID,'CanSteal':IsCanSteal})
+        self.StealCount +=1
+        if self.StealCount >= self.StealMaxCount: 
+            self.client.onCheckCanSteal(self.IsCanStealList, ByStealDBID)
+            self.StealCount = 0
+            DEBUG_MSG("CheckCanStealCallback:%s,%i" % (str(self.IsCanStealList),ByStealDBID) )
+        DEBUG_MSG("Steal StealCount:%i,%i" % (self.StealCount,self.StealMaxCount) )
 
-    #消息框使用
+    #消息框里检测是否可偷
     #DBID:偷者的DBID, ByDBID: 被偷者的DBID
     def reqCheckMessageCanSteal(self, DBID , ByDBID, MesaageUUID):
-        KBEngine.createEntityFromDBID("Account", ByDBID, Functor.Functor(self.CallBackCheckMessageCanSteal,DBID,MesaageUUID))
+        self.CheckCanSteal(DBID,ByDBID,Functor.Functor(self.CheckMessageCanStealCallback, MesaageUUID) )
+       
+    def CheckMessageCanStealCallback(self, MesaageUUID, stealDBID, ByStealDBID, IsCanSteal):
+        self.client.onCheckMessageCanSteal(IsCanSteal, MesaageUUID)
+        DEBUG_MSG("CheckMessageCanStealCallback:%i,%i" % (IsCanSteal,MesaageUUID) )
 
-    def CallBackCheckMessageCanSteal(self, DBID,MesaageUUID, baseRef, databaseID, wasActive):
-        if baseRef is None:
-            DEBUG_MSG("CallBackCheckMessageCanSteal baseRef error:%i" % databaseID)
-            g_Generator.Set(databaseID,self.CallBackCheckMessageCanSteal,DBID,MesaageUUID)
-        else:
-            Land = baseRef.getComponent("Land")
-            IsCan, LandList = Land.IsAllCanSteal(DBID)   
-            self.client.onCheckMessageCanSteal(IsCan, MesaageUUID)
-            DEBUG_MSG("CallBackCheckMessageCanSteal:%i,%i" % (IsCan,MesaageUUID) )
-            if not wasActive:
-                baseRef.destroy()
-    
+    #检测好友是否可偷
     def CheckFriendCanSteal(self):
-        CurCount = 0
         INFO_MSG("CheckFriendCanSteal:%i" % len(self.FriendList))
+        owerDBID = self.owner.databaseID
         for friendInfo in self.FriendList:
-            CurCount += 1
-            KBEngine.createEntityFromDBID("Account", friendInfo['DBID'], 
-            Functor.Functor(self.CallBackCheckFriendCanSteal,self.owner.databaseID,CurCount,len(self.FriendList)) )
+            self.CheckCanSteal(owerDBID, friendInfo['DBID'],self.CheckFriendCanStealCAllback)
 
-    def CallBackCheckFriendCanSteal(self, DBID,CurCount,MaxCount, baseRef, databaseID, wasActive):
-        if baseRef is None:
-            DEBUG_MSG("CallBackCheckFriendCanSteal baseRef error:%i" % databaseID)
-            g_Generator.Set(databaseID,self.CallBackCheckFriendCanSteal,DBID,CurCount,MaxCount)
+    def CheckFriendCanStealCAllback(self, stealDBID, ByStealDBID, IsCanSteal):
+        self.ChangeFriendInfo(ByStealDBID,'CanSteal', IsCanSteal )
+
+    #stealDBID: 偷者  ByStealDBID： 被偷者
+    def CheckCanSteal(self,stealDBID, ByStealDBID,callback):
+        sql = "select count(*) from kbe.tbl_Account_Land_LandData where parentID in (select id from kbe.tbl_Account_Land where parentID = %i) \
+        and sm_stage = 6 and sm_surpHarvest > (sm_Harvest/2) and not find_in_set('%i',sm_StealList) " % (ByStealDBID,stealDBID)
+        KBEngine.executeRawDatabaseCommand(sql, Functor.Functor(self.CanStealsqlcallback, stealDBID, ByStealDBID,callback))
+        #DEBUG_MSG("can steal sql :%s" % (sql) )
+
+    def CanStealsqlcallback(self,stealDBID,ByStealDBID,callback, result, rows, insertid, error):
+        if len(result) > 0:
+            print("result====================")
+            print(result)
+            count = bytes.decode(result[0][0])
+            if int(count) > 0: 
+                callback(stealDBID,ByStealDBID,1)  #可以偷
+                DEBUG_MSG("CanStealsqlcallback steal:%i,bySteal:%i,count:%i " % (stealDBID,ByStealDBID,int(count) ) )
+            else:
+                callback(stealDBID,ByStealDBID,0)        
         else:
-            Land = baseRef.getComponent("Land")
-            IsCan, LandList = Land.IsAllCanSteal(DBID)   
-            self.ChangeFriendInfo(databaseID,'CanSteal', int(IsCan) )
-            if CurCount >= MaxCount: 
-                self.reqFriendList()
-                DEBUG_MSG("CallBackCheckFriendCanSteal %d,%d" %(CurCount, MaxCount) )
-            if not wasActive:
-                baseRef.destroy()
-
+            callback(stealDBID,ByStealDBID,0)
+      
     '''
 	 偷树
 	'''
     #被消息邀请偷树，需要填消息的MesaageUUID
     def reqSteal(self, DBID, Name, MesaageUUID):
-        INFO_MSG("reqSteal:%i,%s" % (DBID, Name) )	
+        INFO_MSG("reqSteal:%i,%s" % (DBID, Name) )
+        self.BuildGenerator('CallBackSteal')	
         KBEngine.createEntityFromDBID("Account", DBID, Functor.Functor(self.CallBackSteal,Name))
         self.ChangeMessageState(MesaageUUID,3)
 			
@@ -664,7 +787,8 @@ class Friends(KBEngine.EntityComponent):
         INFO_MSG("CallBackSteal:%i,%i" % (databaseID, wasActive) )
         if baseRef is None:
             DEBUG_MSG("CallBackSteal baseRef error:%i" % databaseID)
-            g_Generator.Set(databaseID,self.CallBackSteal,Name)
+            if self.owner is not None:
+                self.GetGenerator('CallBackSteal').Set(databaseID,self.CallBackSteal,Name)
         else:
             #传入当前用户的ID
             Land = baseRef.getComponent("Land")
@@ -696,54 +820,7 @@ class Friends(KBEngine.EntityComponent):
             if not wasActive:
                 baseRef.destroy()
 
-    '''
-        好友列表设置可偷
-    '''	
-	#设置某个好友是否可偷
-    def SetFriendCanSteal(self, FriendDBID, IsCanSteal):
-        for friendInfo in self.FriendList:
-            if friendInfo['DBID'] == FriendDBID:
-                KBEngine.createEntityFromDBID("Account", FriendDBID, Functor.Functor(self.CallBackFriendSteal,self.owner.databaseID,IsCanSteal) )
-                return
-        INFO_MSG("SetFriendCanSteal not find:%d,%d" % (FriendDBID, IsCanSteal ) )	
-
-	#设置所有好友是否可偷
-    def SetAllFriendCanSteal(self,IsCanSteal):
-        if hasattr(self,'client'):
-            for friendInfo in self.FriendList:
-                KBEngine.createEntityFromDBID("Account", friendInfo['DBID'], Functor.Functor(self.CallBackFriendSteal,self.owner.databaseID,IsCanSteal) )
-        
-
-    def CallBackFriendSteal(self,DBID,CanSteal,baseRef,databaseID,wasActive):
-        if baseRef is None:
-            DEBUG_MSG("CallBackFriendSteal baseRef error:%i" % databaseID)
-            g_Generator.Set(databaseID,self.CallBackFriendSteal,DBID,CanSteal)
-        else:
-            #获得收益
-            Friends = baseRef.getComponent("Friends")
-            Friends.ChangeFriendInfo(DBID,'CanSteal',CanSteal)
-            INFO_MSG("CallBackFriendSteal:自己：%i，好友：%i,%d" % (DBID,databaseID, CanSteal ) )
-            if not wasActive:
-                baseRef.destroy()
 
 
-            #INFO_MSG("YaoEndTime is ok:%i" % (self.YaoEndTime ) )
-        #for index,Accept in enumerate(self.AcceptList):
-            # if Accept['YaoEndTime'] != 0 and nowtime > Accept['YaoEndTime']:
-            #     #调用该玩家的摇树处理
-            #     KBEngine.createEntityFromDBID("Account",Accept['DBID'],Functor.Functor(self.CallBackMasterYaoShu) )
-                
-    #场主摇树
-    # def CallBackMasterYaoShu(self,baseRef,databaseID, wasActive):
-    #     if baseRef is None:
-    #         DEBUG_MSG("CallBackMasterYaoShu baseRef error:%i" % databaseID)
-    #         g_Generator.Set(databaseID,self.CallBackMasterYaoShu)
-    #     else:
-    #         #如果场主不在线才处理
-    #         if not wasActive:
-    #             Friends = baseRef.getComponent("Friends")
-    #             Friends.MasterYaoShuHandler(databaseID)
-    #             INFO_MSG("CallBackMasterYaoShu:%i" % (databaseID ) )
-    #             baseRef.destroy()
 
  

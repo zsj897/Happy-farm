@@ -55,9 +55,9 @@
       <FirstRecharge>   <!--第一次充值-->
         <Type>	BOOL	</Type> 
       </FirstRecharge>
-      <rank>
-        <Type>	UINT64	</Type>
-      </rank>
+      <skin>
+        <Type>	UINT32	</Type>
+      </skin>
     </Properties>
   </ACCOUNT_DATA>
   
@@ -93,7 +93,7 @@
         <Type>	UINT32	</Type>
       </Harvest>
       <StealList> <!-- 偷树者列表 -->
-        <Type>	STEAL_LIST	</Type>
+        <Type>	UNICODE	</Type>
       </StealList>
     </Properties>
   </LAND_INFO>
@@ -216,11 +216,14 @@
       <time> 
         <Type>	UINT64	</Type>
       </time>
-      <MesaageID> 
+      <MessageID> 
         <Type>	UINT32	</Type>
-      </MesaageID>
+      </MessageID>
+      <Endtime> <!--消息结束时间，到期删除-->
+        <Type>	UINT64	</Type>
+      </Endtime>
       <ArgList>   <!--state 0:未处理 1:接受未处理 2:拒绝 3:已接受已处理-->
-        <Type>	ARRAY <of>UNICODE </of>	</Type>
+        <Type>	UNICODE </Type>
       </ArgList>
     </Properties>
   </SYS_MESSAGE>
@@ -365,6 +368,54 @@
       </Endtime>
     </Properties>
   </TASK_INFO>
+
+  <RANK_INFO>
+    FIXED_DICT
+    <Properties>
+      <uid>  <!--uid-->
+        <Type>	UNICODE	</Type>
+      </uid>
+      <rank>  <!--排名-->
+        <Type>	UINT32	</Type>
+      </rank>
+      <playerName>  <!--玩家名字-->
+        <Type>	UNICODE	</Type>
+      </playerName>
+      <score>  <!--玩家分数，对应砖石，宠物，游戏币，E币-->
+        <Type>	UINT32	</Type>
+      </score>
+    </Properties>
+  </RANK_INFO>
+
+  <RANK_RECORD>
+    FIXED_DICT
+    <Properties>
+      <type>  <!--当前，上周，最佳-->
+        <Type>	UNICODE	</Type>
+      </type>
+      <rank>  <!--排名-->
+        <Type>	UINT32	</Type>
+      </rank>
+      <title>  <!--称号-->
+        <Type>	UNICODE	</Type>
+      </title>
+      <score>  <!--玩家分数，对应砖石，宠物，游戏币，E币-->
+        <Type>	UINT32	</Type>
+      </score>
+    </Properties>
+  </RANK_RECORD>
+
+  <RANK_AWARD>
+    FIXED_DICT
+    <Properties>
+      <Type>  <!--钻石，抓宠，游戏币，E币-->
+        <Type>	UNICODE	</Type>
+      </Type>
+      <award>  <!--奖励内容-->
+        <Type>	UNICODE	</Type>
+      </award>
+    </Properties>
+  </RANK_AWARD>
 
   <CARD_INFOS_LIST>
     FIXED_DICT

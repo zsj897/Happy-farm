@@ -3,6 +3,7 @@ import Functor
 from KBEDebug import *
 import d_game
 import time
+import datetime
 from GlobalDefine import *
 from Poller import *
 
@@ -35,11 +36,11 @@ class Task(KBEngine.EntityComponent):
         DEBUG_MSG("Task[%i]::onClientEnabled:entities enable." % (self.ownerID))
         self._taskObjs = []
         self.BuildTaskObj()
-        self.addTimer(1,60,TIMER_CD_TASK_4)
+        self.addTimer(1,1,TIMER_CD_TASK_8)
         self.InitClientData()
 
     def InitClientData(self):
-        if hasattr(self,'client'):
+        if hasattr(self,'client') and self.client:
             self.reqTaskList()
       
     def onClientDeath(self):
@@ -50,7 +51,7 @@ class Task(KBEngine.EntityComponent):
         DEBUG_MSG("Task[%i].onClientDeath:" % self.ownerID)	
 
     def onTimer(self, id, userArg):
-        if userArg == TIMER_CD_TASK_4:
+        if userArg == TIMER_CD_TASK_8:
             self.CheckTaskTime()
 
     def Component(self,name):
@@ -87,7 +88,8 @@ class Task(KBEngine.EntityComponent):
     def CheckTaskTime(self):
         for obj in self._taskObjs:
             if obj.CheckResetTime():
-                self.client.onTaskInfo(obj.GetTaskInfo())
+                if hasattr(self,'client') and self.client:
+                    self.client.onTaskInfo(obj.GetTaskInfo())
                 DEBUG_MSG("onTaskInfo:%s" % str(obj.GetTaskInfo()))
     """
     任务列表
@@ -208,9 +210,11 @@ class ResetTask(TaskBase):
         
     #获得下一天的零点零分时间戳
     def GetNextDay(self):
-        now_time = int(time.time()) 
-        return now_time - now_time % 86400 + time.timezone + 86400
-	
+        today = datetime.date.today()
+        tomorrow = today + datetime.timedelta(days=1)
+        # 明天开始时间戳
+        tomorrow_start_time = int(time.mktime(time.strptime(str(tomorrow), '%Y-%m-%d')))
+        return tomorrow_start_time
 
 """
 公众号任务
@@ -234,7 +238,7 @@ class ComTask(TaskBase):
      #必须实现
     def GetTaskAward(self, FinishNum):
         #发送公众号验证
-        g_Poller.CheckBindWeChat(self._TaskCom.owner.AccountName(), Functor.Functor(self.OnGetTaskAward,FinishNum ) )
+        self.owner.poller.CheckBindWeChat(self._TaskCom.owner.AccountName(), Functor.Functor(self.OnGetTaskAward,FinishNum ) )
 
     def OnGetTaskAward(self,FinishNum, Result):
         if Result['code'] == 1:

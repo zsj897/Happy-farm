@@ -13,24 +13,7 @@
 	</Properties>
 
 	<BaseMethods>
-    <UpdataPlayer>
-      <!--更新有多少在线玩家的方法 -->
-    </UpdataPlayer>
 
-    <reqAddPlayer>
-      <!--玩家上线向汇报的方法 -->
-      <Arg>	ENTITYCALL	</Arg>
-    </reqAddPlayer>
-
-    <reqAddMarcher>
-      <!--玩家开始匹配向汇报的方法 -->
-      <Arg>	ENTITYCALL	</Arg>
-    </reqAddMarcher>
-
-    <reqDelMarcher>
-      <!--玩家停止匹配向汇报的方法 -->
-      <Arg>	ENTITYCALL	</Arg>
-    </reqDelMarcher>
 
 
   </BaseMethods>

@@ -251,61 +251,63 @@ class cardBase(KBEngine.Entity,Spell):
 			self.removeBuff(buff)
 		self.battlefiled.onFollowerDie(self)
 
-	def reqUse(self,callerID,target,needPos,afterChoose = False):
-		if not afterChoose:
-			#人出牌处理逻辑
-			DEBUG_MSG("GameObj::reqUse:[%i].  target:[%s]  needPos[%s]" % (self.id,target,needPos))
-			if callerID!=self.avatarID:
-				return
+	def reqUse(self,callerID,target):
+		pass
+	# def reqUse(self,callerID,target,needPos,afterChoose = False):
+	# 	if not afterChoose:
+	# 		#人出牌处理逻辑
+	# 		DEBUG_MSG("GameObj::reqUse:[%i].  target:[%s]  needPos[%s]" % (self.id,target,needPos))
+	# 		if callerID!=self.avatarID:
+	# 			return
 
-			successInfor = self.useSuccess(target,needPos)
+	# 		successInfor = self.useSuccess(target,needPos)
 
-			if successInfor == '':
-				pass
-			else:
-				self.clientMsg(successInfor)
-				return
+	# 		if successInfor == '':
+	# 			pass
+	# 		else:
+	# 			self.clientMsg(successInfor)
+	# 			return
 
-			if self.cost > self.avatar.CrystalAvaliable:
-				self.clientMsg("水晶不足 无法施放 当前水晶：%s  所需水晶：%s"%(self.avatar.CrystalAvaliable,self.cost))
-				return
-			else:
-				if len(self.avatar.followerList) > 6 and self.type == 3:
-					self.clientMsg("当前随从已经达到上限 无法继续召唤")
-					return
+	# 		if self.cost > self.avatar.CrystalAvaliable:
+	# 			self.clientMsg("水晶不足 无法施放 当前水晶：%s  所需水晶：%s"%(self.avatar.CrystalAvaliable,self.cost))
+	# 			return
+	# 		else:
+	# 			if len(self.avatar.followerList) > 6 and self.type == 3:
+	# 				self.clientMsg("当前随从已经达到上限 无法继续召唤")
+	# 				return
 
-			if len(self.chooseStrLs()) != 0:#如果需要抉择 如战争古树 进行处理
-				self.chooseDataStore['targetID'] = target
-				self.chooseDataStore['needPos'] = needPos
-				self.chooseDataStore['active'] = True
-				self.reqChoose()
-				return
-		else:
-			DEBUG_MSG("GameObj::reqUse:[%i].  enter to choose use" % (self.id))
-			target = self.chooseDataStore['targetID']
-			needPos = self.chooseDataStore['needPos']
+	# 		if len(self.chooseStrLs()) != 0:#如果需要抉择 如战争古树 进行处理
+	# 			self.chooseDataStore['targetID'] = target
+	# 			self.chooseDataStore['needPos'] = needPos
+	# 			self.chooseDataStore['active'] = True
+	# 			self.reqChoose()
+	# 			return
+	# 	else:
+	# 		DEBUG_MSG("GameObj::reqUse:[%i].  enter to choose use" % (self.id))
+	# 		target = self.chooseDataStore['targetID']
+	# 		needPos = self.chooseDataStore['needPos']
 
-		self.avatar.uesCrystal(self.id,self.cost)
+	# 	self.avatar.uesCrystal(self.id,self.cost)
 
-		if self.pos == 'HAND':
-			if self.type == 3:#法术1奥秘2怪兽3武器4
-				self.avatar.followerPosAssigned(self.id,needPos)
-				self.isAbled = self.isRush
-				self.onUse(target,str(needPos))
-				self.battlefiled.onSummonFollower(self.id)
-			elif self.type == 4:
-				self.changePos('WEAPON')
-				self.onUse(target,'WEAPON')
-			elif self.type == 2:
-				self.changePos('SECRET')
-				self.onUse(target,'SECRET')
-			elif self.type == 1:
-				self.changePos('USED')
-				self.onUse(target,'SPELL')
-		elif self.pos == 'SKILL':
-			self.onUse(target,'SKILL')
+	# 	if self.pos == 'HAND':
+	# 		if self.type == 3:#法术1奥秘2怪兽3武器4
+	# 			self.avatar.followerPosAssigned(self.id,needPos)
+	# 			self.isAbled = self.isRush
+	# 			self.onUse(target,str(needPos))
+	# 			self.battlefiled.onSummonFollower(self.id)
+	# 		elif self.type == 4:
+	# 			self.changePos('WEAPON')
+	# 			self.onUse(target,'WEAPON')
+	# 		elif self.type == 2:
+	# 			self.changePos('SECRET')
+	# 			self.onUse(target,'SECRET')
+	# 		elif self.type == 1:
+	# 			self.changePos('USED')
+	# 			self.onUse(target,'SPELL')
+	# 	elif self.pos == 'SKILL':
+	# 		self.onUse(target,'SKILL')
 
-		self.battlefiled.onUseCard(self.playerID,self.id,self.cardID)
+	# 	self.battlefiled.onUseCard(self.playerID,self.id,self.cardID)
 			
 
 

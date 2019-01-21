@@ -22,5 +22,12 @@ def GamePetRecord(uid,DBID,PetType,ChangeValue,Des):
            value('"+uid+"',"+str(DBID)+','+str(PetType)+','+str(ChangeValue)+",'"+Des+"',"+str(createTime)+');'
     KBEngine.executeRawDatabaseCommand(sql,sqlcallback,12,"mysql2")
 
+#游戏土地记录
+def GameLandRecord(uid,DBID,LandType,ChangeValue,Des):
+    createTime = int(time.time())
+    sql = "insert into kbe_Land_record(uid,DBID,LandType,ChangeValue,Des,createTime)  \
+           value('"+uid+"',"+str(DBID)+','+str(LandType)+','+str(ChangeValue)+",'"+Des+"',"+str(createTime)+');'
+    KBEngine.executeRawDatabaseCommand(sql,sqlcallback,13,"mysql2")
+
 def sqlcallback(result, rows, insertid, error):
     pass 

@@ -79,7 +79,11 @@ SKILL_OBJECT_TYPE_POSITION	= 2
 # ------------------------------------------------------------------------------
 # 组件定时器标识
 # ------------------------------------------------------------------------------
-TIMER_CD_TASK_4 = 4
-TIMER_CD_LAND_5 = 5
-TIMER_CD_ONLINE_6 = 6
-TIMER_CD_FRIEND_DATA_7 = 7
+TIMER_CD_ACCOUNT_1 = 1  # 2
+TIMER_CD_ACCOUNT_2 = 2  # 1  没使用
+TIMER_CD_ACCOUNT_3 = 3  # 0
+TIMER_CD_ACCOUNT_4 = 4  # 0.5
+TIMER_CD_LAND_5 = 5     # 1
+TIMER_CD_ONLINE_6 = 6   
+TIMER_CD_FRIEND_DATA_7 = 7  # 8
+TIMER_CD_TASK_8 = 8      #1

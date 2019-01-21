@@ -7,6 +7,7 @@ import time
 import copy
 import random
 from GlobalDefine import *
+from GameRecord import *
 from ComFunc import *
 
 #LandType 土地编号（d_game)
@@ -39,12 +40,11 @@ class Land(KBEngine.EntityComponent):
 		self.InitClientData()
 
 	def InitClientData(self):
-		if hasattr(self,'client'):
-			self.reqAllLandInfo(0)
+		if hasattr(self,'client') and self.client:
+			self.reqClientLandInfo()
 			#清空管家日志
 			self.IsHaveGJ()
 			self.Component('Friends').reqAllSysMessage('管家日志')
-
 
 	def onClientDeath(self):
 		"""
@@ -60,6 +60,13 @@ class Land(KBEngine.EntityComponent):
 
 	def Component(self,name):
 		return self.owner.getComponent(name)
+
+	def GetGenerator(self,TypeName):
+		return self.owner.generatorFac.GetGenerator(TypeName)
+
+	def BuildGenerator(self,TypeName):
+		if self.owner is not None:
+			self.owner.generatorFac.BuildGenerator(TypeName)
 
 	#检查所有结束时间，土地，管家
 	def CheckALLItemEndTime(self, nowTime):
@@ -121,6 +128,11 @@ class Land(KBEngine.EntityComponent):
 			self.GJEffect(LandInfo)
 		DEBUG_MSG("NextLandStage:%s" % (str(LandInfo) ) )
 
+	#登录的时给客户端发送土地数据
+	def reqClientLandInfo(self):
+		self.client.onServerTime(int(time.time()))	
+		self.client.onAllLandInfo('成功',self.owner.databaseID,self.LandData)
+		self.client.onGJInfo(self.owner.databaseID,self.GJData,False)
 	'''
 	  请求所有土地信息
 	'''
@@ -130,22 +142,27 @@ class Land(KBEngine.EntityComponent):
 			self.client.onAllLandInfo('成功',self.owner.databaseID,self.LandData)
 			self.client.onGJInfo(self.owner.databaseID,self.GJData,False)
 			self.Component("Pet").reqAllPetInfo(0)
-		else: 
+			self.Component("bags").reqBags()
+		else:
+			self.BuildGenerator('CallBackLandInfo') 
 			KBEngine.createEntityFromDBID("Account",DBID,Functor.Functor(self.CallBackLandInfo))
 		
 	def CallBackLandInfo(self,baseRef,databaseID,wasActive):
 		INFO_MSG("onFriendLandInfo:%i,%i" % (databaseID, wasActive) )
 		if baseRef is None:
 			DEBUG_MSG("CallBackLandInfo baseRef error:%i" % databaseID)
-			g_Generator.Set(databaseID,self.CallBackLandInfo)
+			if self.owner is not None:
+				self.GetGenerator('CallBackLandInfo').Set(databaseID,self.CallBackLandInfo)
 		else:
 			Land = baseRef.getComponent("Land")
 			Pet = baseRef.getComponent("Pet")
+			bags = baseRef.getComponent("bags")
 			self.client.onAllLandInfo('成功',databaseID, Land.LandData)
 			self.client.onGJInfo(databaseID,Land.GJData,False)
-			self.Component("Pet").client.onAllPetInfo(databaseID,Pet.PetData)
 			self.owner.client.onData(baseRef.Data,databaseID)
-			DEBUG_MSG("CallBackLandInfo Land:%s" % str(Land.LandData))
+			self.Component("Pet").client.onAllPetInfo(databaseID,Pet.PetData)
+			self.Component("bags").client.onBags(bags.Bags)
+			#DEBUG_MSG("CallBackLandInfo Land:%s" % str(Land.LandData))
 			if not wasActive:
 				baseRef.destroy()
 			
@@ -180,7 +197,6 @@ class Land(KBEngine.EntityComponent):
 		if errcode < 0 :
 			self.client.onBuyLand('金币不够')
 			return -5
-		
 		LandID = Land.AddLand( LandType, d_Land['useNum'])
 		LandInfo = Land.GetLandInfo(LandID)
 		self.client.onBuyLand('成功')
@@ -193,13 +209,15 @@ class Land(KBEngine.EntityComponent):
 		if DBID == 0:
 			self.BuyLand(DBID,LandType,self)	
 		else:
+			self.BuildGenerator('CallBackBuyLand')
 			KBEngine.createEntityFromDBID("Account",DBID,Functor.Functor(self.CallBackBuyLand,LandType))
 	
 	def CallBackBuyLand(self,LandType,baseRef,databaseID,wasActive):
 		INFO_MSG("onFriendBuyLand:%i,%i" % (databaseID, wasActive) )
 		if baseRef is None:
 			DEBUG_MSG("CallBackBuyLand baseRef error:%i" % databaseID)
-			g_Generator.Set(databaseID,self.CallBackBuyLand,LandType)
+			if self.owner is not None:
+				self.GetGenerator('CallBackBuyLand').Set(databaseID,self.CallBackBuyLand,LandType)
 		else:
 			Land = baseRef.getComponent("Land")
 			LandID = self.BuyLand(databaseID,LandType, Land)	
@@ -229,20 +247,22 @@ class Land(KBEngine.EntityComponent):
 		if LandInfo['LandType'] == 0:
 			self.client.onGiveLand('未购买')
 			return -3
+		self.BuildGenerator('CallFriendGiveLand')
 		KBEngine.createEntityFromDBID("Account",DBID,Functor.Functor(self.CallFriendGiveLand,LandInfo))
 		return 0
 
 	def CallFriendGiveLand(self,LandInfo,baseRef,databaseID,wasActive):
 		if baseRef is None:
 			DEBUG_MSG("CallFriendGiveLand baseRef error:%i" % databaseID)
-			g_Generator.Set(databaseID,self.CallFriendGiveLand,LandInfo)
+			if self.owner is not None:
+				self.GetGenerator('CallFriendGiveLand').Set(databaseID,self.CallFriendGiveLand,LandInfo)
 		else:
 			selfLandInfo = copy.deepcopy(LandInfo)
 			Land = baseRef.getComponent("Land")
 			#增加好友的土地
 			if Land.AddLand2(selfLandInfo):
 				#删除自己土地
-				self.DelLand(LandInfo['ID'])
+				self.DelLand(LandInfo['ID'],'赠送给别人')
 				self.client.onGiveLand('成功')
 				#记录消息
 				d_land = self.GetConfigLandInfo(selfLandInfo['LandType'] )
@@ -512,11 +532,13 @@ class Land(KBEngine.EntityComponent):
 	
 	def IsHaveGJ(self):
 		nowtime = int(time.time())
+		if self.GJData['GJEndtime'] == 0:
+			return False
 		if self.GJData['GJEndtime'] > nowtime:
 			return True
 		else:
 			#离线不清理管家，因为要通知客户端弹框
-			if hasattr(self,'client'):
+			if hasattr(self,'client') and self.client:
 				self.clearGJ()
 			return False
 
@@ -537,22 +559,22 @@ class Land(KBEngine.EntityComponent):
 			self.GJData['GJGetEndtime'] = 0
 			nowtime = int(time.time() )	
 			self.client.onGJInfo(self.owner.databaseID,self.GJData,False)
-			INFO_MSG("SetGJ :%s" % ( str(self.GJData)) )
+			INFO_MSG("SetGJ DBID:%i, :%s" % ( self.owner.databaseID,str(self.GJData)) )
 			
 	#清空管家,已到期
 	def clearGJ(self):
 		if self.GJData['GJType'] != 0:
+			INFO_MSG("clearGJ DBID:%i,:%s" % (self.owner.databaseID, str(self.GJData)) )
 			self.GJData['GJType'] = 0
 			self.GJData['GJEndtime'] = 0
 			self.client.onGJInfo(self.owner.databaseID,self.GJData,True)
 			self.Component('Friends').ClearMessage('管家日志')
-			INFO_MSG("clearGJ :%s" % ( str(self.GJData)) )
-
+			
 	def SetGJGetEndtime(self, Time):
 		self.GJData['GJGetEndtime'] = Time
-		if hasattr(self,'client'):
+		if hasattr(self,'client') and self.client:
 			self.client.onGJInfo(self.owner.databaseID,self.GJData,False)
-		INFO_MSG("SetGJGetEndtime :%s" % ( str(self.GJData)) )
+		INFO_MSG("SetGJGetEndtime  DBID:%i,:%s" % (self.owner.databaseID, str(self.GJData)) )
 
 	
 	'''
@@ -688,8 +710,8 @@ class Land(KBEngine.EntityComponent):
 			#DEBUG_MSG("IsCanSteal 0.5 error LandInfo:%s,%d,DBID:%d" % (str(LandInfo),LandInfo['Harvest']/2, DBID) )	
 			return False
 		#是否已偷过
-		if DBID in LandInfo['StealList']:
-			#DEBUG_MSG("IsCanSteal already steal LandInfo:%s,DBID:%d" % (str(LandInfo) , DBID) )	
+		if	FindSplitStr(LandInfo['StealList'],str(DBID) ):
+			DEBUG_MSG("IsCanSteal already steal LandInfo:%s,DBID:%d" % (LandInfo['StealList'] , DBID) )	
 			return False
 		return True
 
@@ -774,15 +796,16 @@ class Land(KBEngine.EntityComponent):
 			return None
 		d_Item = self.Component("bags").GetConfigItem(d_Seed['outputID'])
 		return d_Item
+
 	#初始化土地数据
 	def InitLandData(self):
 		if len(self.LandData)== 0:
 			self.AddLand( LAND_TYPE_HUA ,0)
+			
 	#清除土地信息
 	def ClearLandInfo(self,LandInfo):
 		#黄土地可以一直使用
-		InfoDcit = {'ItemType':0,'stage':0,'EndTime':0,'surpHarvest':0,'Harvest':0 }
-		InfoDcit['StealList'] = []
+		InfoDcit = {'ItemType':0,'stage':0,'EndTime':0,'surpHarvest':0,'Harvest':0,'StealList':'' }
 		if LandInfo['LandType'] == LAND_TYPE_HUA:
 			self.ChangeLandInfo(LandInfo, InfoDcit )
 			return
@@ -790,7 +813,7 @@ class Land(KBEngine.EntityComponent):
 			InfoDcit['UseNum'] = LandInfo['UseNum'] -1
 			self.ChangeLandInfo(LandInfo, InfoDcit )
 		else: #使用次数用完
-			self.DelLand(LandInfo['ID'])
+			self.DelLand(LandInfo['ID'],'次数用完')
 			
 	#查找土地空闲的ID
 	def FindFreeLandID(self):
@@ -807,16 +830,16 @@ class Land(KBEngine.EntityComponent):
 	def AddLand(self,LandType,UseNum):
 		LandID = self.FindFreeLandID()
 		LandInfo = self.GetLandInfo(LandID)
-		LandDict = {'ID':LandID, 'LandType':LandType,'UseNum':UseNum,'ItemType':0,'stage':0,'EndTime':0,'surpHarvest':0,'Harvest':0}
-		LandDict['StealList'] = []
+		LandDict = {'ID':LandID, 'LandType':LandType,'UseNum':UseNum,'ItemType':0,'stage':0,'EndTime':0,'surpHarvest':0,'Harvest':0,'StealList':''}
 		if LandInfo is None:
 			self.LandData.append(LandDict)
-			if hasattr(self,'client'):
+			if hasattr(self,'client') and self.client:
 				self.client.onLandInfo('成功', LandDict)
 			DEBUG_MSG("AddLand LandDict:%i,%s" %  (self.ownerID,str(LandDict)) )
 		else:
 			self.ChangeLandInfo(LandInfo, LandDict )
 			DEBUG_MSG("AddLand LandInfo:%i,%s" %  (self.ownerID,str(LandInfo)) )
+		GameLandRecord(self.owner.AccountName(),self.owner.databaseID,LandType,1,'增加土地：购买，LandID:%i' % (LandID) )
 		return LandID
 		
 	def AddLand2(self,LandInfo):
@@ -829,20 +852,22 @@ class Land(KBEngine.EntityComponent):
 			self.LandData.append(LandInfo)
 		else:
 			self.LandData[LandID-1] = LandInfo
-		if hasattr(self,'client'):
+		if hasattr(self,'client') and self.client:
 			self.client.onLandInfo('成功', LandInfo)
 		DEBUG_MSG("AddLand2 :%i,%s" %  (self.ownerID,str(self.LandData[LandID-1])) )
+		GameLandRecord(self.owner.AccountName(),self.owner.databaseID,LandInfo['LandType'],1,'增加土地：赠送, LandID:%i,剩余次数:%i' % (LandID,LandInfo['UseNum']) )
 		return True
 
 	#删除土地
-	def DelLand(self, LandID):
+	def DelLand(self, LandID, Des):
 		LandInfo = self.GetLandInfo(LandID)
 		if LandInfo is None:
 			return
-		LandDict = {'LandType':0,'UseNum':0,'ItemType':0,'stage':0,'EndTime':0,'surpHarvest':0,'Harvest':0}
-		LandDict['StealList'] = []
+		LandType = LandInfo['LandType']
+		LandDict = {'LandType':0,'UseNum':0,'ItemType':0,'stage':0,'EndTime':0,'surpHarvest':0,'Harvest':0,'StealList':''}
 		self.ChangeLandInfo(LandInfo, LandDict )
 		DEBUG_MSG("DelLand:%i,%s" % (self.ownerID, str(LandInfo) ) )
+		GameLandRecord(self.owner.AccountName(),self.owner.databaseID,LandType,1,'销毁土地：%s, LandID:%i' % (Des,LandID) )
 
 	#修改土地信息
 	def ChangeLandInfo(self, LandInfo, InfoDcit):
@@ -860,9 +885,7 @@ class Land(KBEngine.EntityComponent):
 			LandInfo['surpHarvest'] = InfoDcit['surpHarvest']
 		if 'Harvest' in InfoDcit.keys():
 			LandInfo['Harvest'] = InfoDcit['Harvest']
-		if 'StealList' in InfoDcit.keys():
-			LandInfo['StealList'] = InfoDcit['StealList']
-		if hasattr(self,'client'):
+		if hasattr(self,'client') and self.client:
 			self.client.onLandInfo('成功', LandInfo)
 		DEBUG_MSG("ChangeLandInfo:%i,%s" % (self.ownerID,str(LandInfo) ) )
 
@@ -879,14 +902,15 @@ class Land(KBEngine.EntityComponent):
 			LandInfo['surpHarvest'] = value
 		elif Key == 'Harvest':
 			LandInfo['Harvest'] = value
-		elif Key == 'StealList':
-			LandInfo['StealList'] = value
-		if hasattr(self,'client'):
+		if hasattr(self,'client') and self.client:
 			self.client.onLandInfo('成功', LandInfo)
 		DEBUG_MSG("ChangeLandInfo2:%i,%s" % (self.ownerID,str(LandInfo) ) )
 
 	def AddSteal(self, LandInfo, StealDBID):
-		LandInfo['StealList'].append(StealDBID)
+		if LandInfo['StealList']:
+			LandInfo['StealList'] += ',' + str(StealDBID)
+		else: 
+			LandInfo['StealList'] = str(StealDBID) 
 		DEBUG_MSG("AddSteal:%i,%s" % (LandInfo['ID'],str(LandInfo['StealList']) ) )
 
 

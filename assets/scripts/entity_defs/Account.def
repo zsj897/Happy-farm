@@ -158,6 +158,34 @@
     <onBindAccount>
       <Arg> ERR_MSG </Arg>
     </onBindAccount>
+
+    <onTotalRank>
+      <Arg> UNICODE </Arg>
+      <Arg> ARRAY <of> RANK_INFO </of> </Arg>
+    </onTotalRank>
+
+    <onWeekRank>
+      <Arg> UNICODE </Arg>
+      <Arg> ARRAY <of> RANK_INFO </of> </Arg>
+    </onWeekRank>
+
+    <onTotalself>
+      <Arg> UNICODE </Arg>
+      <Arg> UINT32 </Arg>
+      <Arg> UINT32 </Arg>
+      <Arg> UNICODE </Arg>
+      <Arg> UINT32 </Arg>
+    </onTotalself>
+
+    <onWeekself>
+      <Arg> UNICODE </Arg>
+      <Arg> ARRAY <of> RANK_RECORD </of> </Arg>
+    </onWeekself>
+
+    <onRankAward>
+      <Arg> ARRAY <of> RANK_AWARD </of> </Arg>
+    </onRankAward>
+
 	</ClientMethods>
 
 	<BaseMethods>
@@ -270,6 +298,30 @@
       <Exposed/>
     </reqBindAccount>
     
+    <reqTotalRank>
+      <Arg> UNICODE </Arg>
+      <Exposed/>
+    </reqTotalRank>
+
+    <reqWeekRank>
+      <Arg> UNICODE </Arg>
+      <Exposed/>
+    </reqWeekRank>
+
+    <reqTotalself>
+      <Arg> UNICODE </Arg>
+      <Exposed/>
+    </reqTotalself>
+
+    <reqWeekself>
+      <Arg> UNICODE </Arg>
+      <Exposed/>
+    </reqWeekself>
+
+    <reqSendRankAward>
+      <Exposed/>
+    </reqSendRankAward>
+
   </BaseMethods>
 
 	<CellMethods>

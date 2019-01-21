@@ -31,7 +31,7 @@ class Pet(KBEngine.EntityComponent):
         #self.InitClientData()
     
     def InitClientData(self):
-        if hasattr(self,'client'):
+        if hasattr(self,'client') and self.client:
             self.reqAllPetInfo(0)
 
       
@@ -53,6 +53,13 @@ class Pet(KBEngine.EntityComponent):
 
     def Component(self,name):
         return self.owner.getComponent(name)
+
+    def GetGenerator(self,TypeName):
+        return self.owner.generatorFac.GetGenerator(TypeName)
+
+    def BuildGenerator(self,TypeName):
+        if self.owner is not None:
+            self.owner.generatorFac.BuildGenerator(TypeName)
     '''
 	  获取宠物定点投放信息
 	'''
@@ -138,11 +145,14 @@ class Pet(KBEngine.EntityComponent):
         if d_GenPet is not None:                          
             nowtime = int(time.time() )
             PetInfo = {'UUID':UUID, 'PetType':PetType, 'Endtime':nowtime+d_GenPet['time']*60 }
-        else:
-            PetInfo = {'UUID':UUID, 'PetType':PetType, 'Endtime':0 }
-        self.PetData.append(PetInfo)
-        self.client.onAddPet(PetInfo)
-        GamePetRecord(self.owner.AccountName(),self.owner.databaseID,PetType,1,Des)
+            self.PetData.append(PetInfo)
+            self.client.onAddPet(PetInfo)
+            GamePetRecord(self.owner.AccountName(),self.owner.databaseID,PetType,1,Des)
+        else: #宝宝
+            self.Component("bags").AddItem(PetType,1,Des)
+        #修改排行榜
+        KBEngine.globalData["Halls"].rank.ChangeRank('Pet',1,self.owner.Data['name'], self.owner.AccountName(),self.owner.databaseID)
+        
 
     def DelPet(self, UUID, Des):
         for index,PetInfo in enumerate(self.PetData):
@@ -188,21 +198,40 @@ class Pet(KBEngine.EntityComponent):
             self.owner.ChangeBaseData(awardType, d_GenPet['awardValue'][index],'增加，普通宠物奖励')
             self.Component("Friends").SYSMessage(0, 3013, int(time.time()) ,d_Item['ItemName'],d_GenPet['awardValue'][index],'游戏币')
 
+
+    def SendAllPetInfo(self, databaseID, PetData):
+        if not PetData:
+            self.client.onAllPetInfo(databaseID,PetData)
+        num = 0
+        PetList =[]
+        for index, PetInfo in enumerate(PetData):
+            if num >= 40:
+                self.client.onAllPetInfo(databaseID,PetList)
+                num = 0
+                PetList =[]
+                DEBUG_MSG("SendPetInfo 25 Total Rank data" )
+            PetList.append(PetInfo)
+            num +=1
+        if PetList:
+            self.client.onAllPetInfo(databaseID,PetList)
+
     '''
 	  请求宠物信息
 	'''  
     def reqAllPetInfo(self, DBID):
         if DBID == 0:
-            self.client.onAllPetInfo(self.owner.databaseID,self.PetData)
-        else: 
+            self.SendAllPetInfo(self.owner.databaseID,self.PetData)
+        else:
+            self.BuildGenerator('CallBackAllPetInfo')
             KBEngine.createEntityFromDBID("Account",DBID,Functor.Functor(self.CallBackAllPetInfo))
 		
     def CallBackAllPetInfo(self,baseRef,databaseID,wasActive):
         if baseRef is None:
-            g_Generator.Set(databaseID,self.CallBackAllPetInfo)
+            if self.owner is not None:
+                self.GetGenerator('CallBackAllPetInfo').Set(databaseID,self.CallBackAllPetInfo)
         else:
             Pet = baseRef.getComponent("Pet")
-            self.client.onAllPetInfo(databaseID,Pet.PetData)
+            self.SendAllPetInfo(databaseID,Pet.PetData)
             if not wasActive:
                 baseRef.destroy()
        
@@ -337,12 +366,11 @@ class Pet(KBEngine.EntityComponent):
             self.client.onPetCompound('配置表找不到特殊宠物',0)
             return
         for PetType in SpePetList:
-            if self.FindPetByType(PetType) == None:
-                self.client.onPetCompound('没有该宝宝', PetType)
+            ItemInfo = self.Component("bags").GetItemInfo(PetType)
+            if ItemInfo['ItemNum'] == 0:
                 return
         for PetType in SpePetList:
-            if not self.DelPetByType(PetType,'宝宝合成'):
-                return
+            self.Component("bags").UseItem(PetType,Des='合成开元通宝')
         #获得1玫开元通宝
         self.owner.ChangeBaseData(3, 100, '宠物合成获得开元通宝')
         self.client.onPetCompound('成功', 0)

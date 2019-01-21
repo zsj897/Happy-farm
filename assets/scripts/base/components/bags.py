@@ -31,8 +31,12 @@ class bags(KBEngine.EntityComponent):
         self.InitClientData()
         
     def InitClientData(self):
-        if hasattr(self,'client'):
+        if hasattr(self,'client') and self.client:
             self.reqBags()
+        #没有默认皮肤的添加
+        ItemInfo = self.GetItemInfo(7001)
+        if ItemInfo['ItemNum'] == 0:
+            self.AddItem(7001,1,'默认皮肤')
 
     def onClientDeath(self):
         """
@@ -66,6 +70,19 @@ class bags(KBEngine.EntityComponent):
                 return ItemInfo
         return {'ItemType':ItemType,'ItemNum':0}
     
+    def checkBuyItem(self,shopInfo):
+        if shopInfo['ID'] == 5 or shopInfo['ID'] == 6:
+            DEBUG_MSG("shopInfo:%i " % (shopInfo['ID'])	)
+            if self.Component('Land').IsHaveGJ():
+                return False
+        nowtime = int(time.time())
+        limitTime = shopInfo['limitTime']
+        if limitTime:
+            DEBUG_MSG("shopInfo:%s " % str(limitTime) )
+            if nowtime < limitTime[0] or nowtime > limitTime[1]:
+                return False
+        return True
+
     def	reqBuyItem(self,shopID,num = 1):
         DEBUG_MSG("reqBuyItem:%i" % shopID)
         if num < 1:
@@ -76,9 +93,12 @@ class bags(KBEngine.EntityComponent):
         if shopInfo is None:
             self.client.onBuyItem('错误的shopID',ERR_ITEM_INFO)
             return -2
+        #判断是否已有唯一道具
+        if not self.checkBuyItem(shopInfo):
+            return -5
         priceType = shopInfo['priceType']
         Value = shopInfo['Value']
-        errcode=self.owner.ChangeBaseData(priceType, -(Value*num),'减少,购买商品:%d' % shopID)
+        errcode=self.owner.ChangeBaseData(priceType, -(Value*num), '购买商品:%s' % shopInfo['Name'] )
         if errcode < 0:
             self.client.onBuyItem("金币不够",ERR_ITEM_INFO)
             return -3 
@@ -107,7 +127,7 @@ class bags(KBEngine.EntityComponent):
             rate = math.ceil(diamond * 0.1)
             diamond += rate
             DEBUG_MSG("first Recharge:%d,%d" % (rate, diamond)	)
-        g_Poller.GetRechargeOrder(device_type,diamond,shopInfo['Value'],self.owner.AccountName(),self.RechargeCall)
+        self.owner.poller.GetRechargeOrder(device_type,diamond,shopInfo['Value'],self.owner.AccountName(),self.RechargeCall)
         
 
     def RechargeCall(self,strResult):
@@ -131,13 +151,15 @@ class bags(KBEngine.EntityComponent):
             return strNum + "包"
         if ItemType == 5001 or ItemType == 5002:
             return ""
+        if ItemType == 7002 or ItemType == 7003 or ItemType == 7004:
+            return strNum + "套"
         return strNum + ""
 
     def reqBags(self):
         DEBUG_MSG("reqBags:%s" % str(self.Bags))	
         self.client.onBags(self.Bags)
 
-    #添加物品 IsUse：aaaa是否立即使用  
+    #添加物品 IsUse：是否立即使用  
     def AddItem(self, ItemType, num , Des):
         try:
             Item = d_game.ItemInfo[ItemType]
@@ -158,10 +180,10 @@ class bags(KBEngine.EntityComponent):
         for Item in self.Bags:
             if Item['ItemType'] == ItemType:
                 Item['ItemNum'] += num
-                if hasattr(self,'client'):
+                if hasattr(self,'client') and self.client:
                     self.client.onAddItem(Item)
                 if IsUse == 1:
-                    self.UseItem(Item['ItemType'],num=num,Des='添加道具时使用') 
+                    self.UseItem(Item['ItemType'],num=num,Des='立即使用') 
                 return
         self.AddItem3(ItemType,num,IsUse)
  
@@ -169,9 +191,9 @@ class bags(KBEngine.EntityComponent):
         Item = {'ItemType':ItemType,"ItemNum":num }
         self.Bags.append(Item)        
         if IsUse == 1:
-            err = self.UseItem(Item['ItemType'],num=num,Des='添加道具时使用')
+            err = self.UseItem(Item['ItemType'],num=num,Des='立即使用')
             INFO_MSG("add UseItem: "+str(err))
-        if hasattr(self,'client'):
+        if hasattr(self,'client') and self.client:
             self.client.onAddItem(Item)
 
     def IsOverlay(self, ItemType):
@@ -179,8 +201,14 @@ class bags(KBEngine.EntityComponent):
         if d_Item is not None and d_Item['IsOverlay'] == 1:
             return True
         return False
+
     #删除物品
     def DelItem(self, ItemType, num = 1):
+        #如果是皮肤类型不删除
+        d_ItemInfo = self.GetConfigItem(ItemType)
+        if d_ItemInfo is not None:
+            if d_ItemInfo['ItemType'] == '皮肤':
+                return 0
         for index, item in enumerate(self.Bags):
             if item['ItemType'] == ItemType:
                 if self.IsOverlay(ItemType): #如果可以叠加
@@ -192,7 +220,7 @@ class bags(KBEngine.EntityComponent):
     def DelItem2(self, item, num = 1):
         if item['ItemNum'] >= num:
             item['ItemNum'] -= num
-            if hasattr(self,'client'):
+            if hasattr(self,'client') and self.client:
                 self.client.onDelItem(item)
             INFO_MSG("DelItem2:%i,%i" % (self.ownerID, item['ItemNum'] ) )
             return 0
@@ -201,8 +229,12 @@ class bags(KBEngine.EntityComponent):
     def DelItem3(self, index):
         self.Bags.pop(index)
         INFO_MSG("DelItem3:%i,%s" % (self.ownerID, str(self.Bags) ) )
-        return 0
+        return 0 
         
+    def reqUseItem(self, ItemType, num):
+        self.UseItem(ItemType, None, 1, '道具：%i' % ItemType)
+        self.client.onUseItem('成功', ItemType)
+
     #使用物品 (ArgDict参数字典)
     def UseItem(self, ItemType, ArgDict = None, num = 1,Des=''):
         for Item in self.Bags:
@@ -300,7 +332,6 @@ class bags(KBEngine.EntityComponent):
         if d_ItemInfo is None:
             return -1
         EffectIDList = d_ItemInfo['EffectID']
-
         if d_ItemInfo['ItemType'] == '种子':
             pass
         elif d_ItemInfo['ItemType'] == '化肥':
@@ -310,7 +341,9 @@ class bags(KBEngine.EntityComponent):
         elif d_ItemInfo['ItemType'] == '货币':
             self.MoneyEffect(ItemType, num)
         elif d_ItemInfo['ItemType'] == '宠物道具':
-            self.PetItem(ItemType,ArgDict)
+            self.PetItem(EffectIDList,ItemType,ArgDict)
+        elif d_ItemInfo['ItemType'] == '皮肤':
+            self.skinEffect(ItemType)
     #种子
     def SeedEffect(self, ItemType, ArgDict):
         pass
@@ -338,15 +371,22 @@ class bags(KBEngine.EntityComponent):
       
     #货币
     def MoneyEffect(self, ItemType, num):
-        self.owner.ChangeBaseData(ItemType, num, '增加，商店购买货币')
+        if ItemType == 1:
+            Des = '钻石兑换游戏币'
+        else:
+            Des = '道具修改属性'
+        self.owner.ChangeBaseData(ItemType, num, Des)
 
     #宠物道具
-    def PetItem(self, ItemType,ArgDict):
+    def PetItem(self, EffectIDList,ItemType,ArgDict):
         for EffectID in EffectIDList:
-            s = self.GetConfigItemEffect(EffectID)
+            d_ItemEffect = self.GetConfigItemEffect(EffectID)
             if d_ItemEffect is None:
                 return 
             if d_ItemEffect['EffectType'] == '提高抓捕概率':
                 Addprob = d_ItemEffect['Value']
                 self.Component("Pet").CatchSpePet2(ArgDict['position'],ArgDict['PetType'],ItemType,Addprob)
-    
+    #皮肤
+    def skinEffect(self, ItemType):
+        self.owner.Data['skin'] = ItemType
+        INFO_MSG("skinEffect:%i" % ( self.owner.Data['skin']) )
